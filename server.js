@@ -150,13 +150,48 @@ app.get('/api/cards/:slug/audio', (req, res) => {
 });
 
 // ---------------------------------------------------------------------------
-// Admin (facultatif) : liste des cartes, protégée par ADMIN_TOKEN
+// Admin : page de gestion des cartes, protégée par ADMIN_TOKEN (.env)
 // ---------------------------------------------------------------------------
-app.get('/api/admin/cards', (req, res) => {
-  if (!config.ADMIN_TOKEN || req.headers.authorization !== `Bearer ${config.ADMIN_TOKEN}`) {
-    return res.status(401).json({ error: 'unauthorized' });
+function requireAdmin(req, res) {
+  if (!config.ADMIN_TOKEN) {
+    res.status(503).json({ error: 'admin_disabled' });
+    return false;
   }
-  res.json(db.listCards());
+  const auth = String(req.headers.authorization || '');
+  const given = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+  const a = Buffer.from(given);
+  const b = Buffer.from(config.ADMIN_TOKEN);
+  if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
+    res.status(401).json({ error: 'unauthorized' });
+    return false;
+  }
+  return true;
+}
+
+app.get('/admin', (req, res) => sendView(res, 'admin.html'));
+
+app.get('/api/admin/cards', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  res.json({ baseUrl: config.BASE_URL, cards: db.listCards() });
+});
+
+// Génération d'un lot : les codes ne sont renvoyés qu'ici, une seule fois
+// (seule leur empreinte est conservée en base).
+app.post('/api/admin/cards', (req, res) => {
+  if (!requireAdmin(req, res)) return;
+  const count = Number(req.body && req.body.count);
+  if (!Number.isInteger(count) || count < 1 || count > 1000) {
+    return res.status(400).json({ error: 'invalid_count' });
+  }
+  const cards = [];
+  for (let i = 0; i < count; i++) {
+    const { slug, code } = db.createCard();
+    cards.push({
+      url: `${config.BASE_URL}/c/${slug}`,
+      code: `${code.slice(0, 3)}-${code.slice(3)}`,
+    });
+  }
+  res.json({ cards });
 });
 
 // Sonde de santé (supervision, load-balancer, docker healthcheck…)

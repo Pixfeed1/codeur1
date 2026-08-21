@@ -150,13 +150,25 @@ hors du serveur régulièrement.)
 cd /var/www/ravive && git pull && npm ci --omit=dev && pm2 restart ravive
 ```
 
+## Administration des cartes (interface web)
+
+Une page d'administration existe sur `/admin`, protégée par mot de passe :
+
+1. Définir le mot de passe dans le `.env` : `ADMIN_TOKEN=un-mot-de-passe-solide`
+   (sans cette variable, la page et l'API d'admin sont désactivées), puis
+   redémarrer l'application.
+2. Ouvrir `https://votre-domaine.fr/admin` → entrer le mot de passe.
+3. Depuis la page : générer un lot de cartes (le CSV `URL ; code` se télécharge
+   dans le navigateur — les codes ne sont affichés qu'une seule fois), et suivre
+   l'état de toutes les cartes (en attente / enregistrée, durée, dates).
+
 ## Production d'un lot de cartes (résumé du flux)
 
-1. Sur le serveur : `node scripts/generate-cards.js 200`
-2. Récupérer le CSV dans `data/exports/`
-3. Encoder chaque URL dans la puce de la carte correspondante (NDEF, type URI)
-4. Imprimer le code d'activation dans le packaging de la même carte
-5. Supprimer le CSV une fois le lot produit (il contient les codes en clair)
+1. Générer le lot depuis `/admin` (ou en SSH : `node scripts/generate-cards.js 200`,
+   CSV dans `data/exports/`)
+2. Encoder chaque URL dans la puce de la carte correspondante (NDEF, type URI)
+3. Imprimer le code d'activation dans le packaging de la même carte
+4. Supprimer le fichier CSV une fois le lot produit (il contient les codes en clair)
 
 ## Sécurité (résumé)
 

@@ -1,0 +1,99 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex, nofollow">
+  <title>Administration — ravive</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+  <style>
+    .wrap { max-width: 720px; }
+    .admin-block { width: 100%; text-align: left; }
+    .row { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
+    .row input[type=number] {
+      width: 110px; border: 1.5px solid rgba(51,41,31,0.14); border-radius: 14px;
+      background: #fffdf6; padding: 12px 14px; font-size: 1.05rem; font-family: inherit;
+    }
+    .row .btn { width: auto; margin-top: 0; padding: 12px 24px; font-size: 0.98rem; }
+    .stats { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
+    .stat { background: #fffdf6; border: 1px solid rgba(51,41,31,0.08); border-radius: 16px; padding: 12px 18px; }
+    .stat b { font-size: 1.3rem; display: block; }
+    .stat span { color: var(--ink-soft); font-size: 0.82rem; }
+    .tablewrap { width: 100%; overflow-x: auto; margin-top: 18px; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
+    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid rgba(51,41,31,0.08); white-space: nowrap; }
+    th { color: var(--ink-soft); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
+    .tag { border-radius: 999px; padding: 3px 10px; font-size: 0.78rem; font-weight: 600; }
+    .tag.pending { background: #f6ecc9; color: #8a6f1f; }
+    .tag.recorded { background: #e6ebdf; color: #5f7150; }
+    .batch { width: 100%; background: #fffdf6; border: 1px solid rgba(51,41,31,0.08); border-radius: 16px; padding: 16px 18px; margin-top: 18px; }
+    .batch code { font-size: 0.85rem; }
+    .note { color: var(--ink-soft); font-size: 0.85rem; margin-top: 10px; }
+    #loginError { margin-top: 14px; }
+    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.82rem; }
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar"><a class="brand" href="/">ravive</a></header>
+
+    <!-- Connexion -->
+    <section class="screen active" id="loginScreen">
+      <p class="kicker">Espace privé</p>
+      <h1>Administration</h1>
+      <p class="lead">Réservé à la gestion des cartes.</p>
+      <form class="field" id="loginForm">
+        <label for="pass">Mot de passe</label>
+        <input id="pass" type="password" style="letter-spacing:normal; text-transform:none; text-align:left;" autocomplete="current-password" required>
+        <p class="error" id="loginError"></p>
+        <button class="btn" type="submit">Entrer</button>
+      </form>
+    </section>
+
+    <!-- Tableau de bord -->
+    <section class="screen" id="dashScreen">
+      <div class="admin-block">
+        <h1>Gestion des cartes</h1>
+
+        <div class="stats">
+          <div class="stat"><b id="statTotal">–</b><span>cartes créées</span></div>
+          <div class="stat"><b id="statPending">–</b><span>en attente d'activation</span></div>
+          <div class="stat"><b id="statRecorded">–</b><span>messages enregistrés</span></div>
+        </div>
+
+        <h2 style="font-family:'Fraunces',Georgia,serif; margin-top:28px;">Générer un lot</h2>
+        <div class="row">
+          <input type="number" id="batchCount" min="1" max="1000" value="50">
+          <button class="btn" id="generateBtn">Générer les cartes</button>
+        </div>
+        <div class="batch" id="batchResult" style="display:none">
+          <b>Lot généré ✔</b>
+          <p class="note">Les codes ci-dessous ne sont affichés qu'<b>une seule fois</b> (ils ne sont pas
+          stockés en clair). Télécharge le fichier maintenant et transmets-le de façon sécurisée
+          à l'encodeur NFC / l'imprimeur, puis supprime-le.</p>
+          <div class="row">
+            <button class="btn" id="downloadCsv">Télécharger le CSV</button>
+          </div>
+        </div>
+
+        <h2 style="font-family:'Fraunces',Georgia,serif; margin-top:28px;">Toutes les cartes</h2>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>URL de la carte</th><th>État</th><th>Durée</th><th>Créée le</th><th>Enregistrée le</th></tr></thead>
+            <tbody id="cardsBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <footer class="foot">
+      <div class="deco-dots"><i></i><i></i><i></i></div>
+      <a href="/">Retour à l'accueil</a>
+    </footer>
+  </div>
+  <script src="/js/admin.js"></script>
+</body>
+</html>

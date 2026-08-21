@@ -44,6 +44,7 @@ module.exports = {
   PORT: Number(process.env.PORT || 3000),
   BASE_URL: (process.env.BASE_URL || 'http://localhost:3000').replace(/\/$/, ''),
   SECRET: secret,
+  ADMIN_USER: process.env.ADMIN_USER || '',
   ADMIN_TOKEN: process.env.ADMIN_TOKEN || '',
   // Durée max d'un message vocal (secondes) et taille max d'upload
   MAX_DURATION_S: Number(process.env.MAX_DURATION_S || 180),

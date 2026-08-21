@@ -46,7 +46,9 @@
       <h1>Administration</h1>
       <p class="lead">Réservé à la gestion des cartes.</p>
       <form class="field" id="loginForm">
-        <label for="pass">Mot de passe</label>
+        <label for="user">Identifiant</label>
+        <input id="user" type="text" style="letter-spacing:normal; text-transform:none; text-align:left;" autocomplete="username" required>
+        <label for="pass" style="margin-top:14px;">Mot de passe</label>
         <input id="pass" type="password" style="letter-spacing:normal; text-transform:none; text-align:left;" autocomplete="current-password" required>
         <p class="error" id="loginError"></p>
         <button class="btn" type="submit">Entrer</button>

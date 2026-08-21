@@ -84,7 +84,7 @@ copie + propagation DNS.
 | `DATA_DIR` | `./data` | Emplacement des données (base, audios, secret) |
 | `BASE_URL` | `http://localhost:3000` | Domaine public, utilisé pour les URL du CSV |
 | `SECRET` | auto-généré dans `data/.secret` | Signe les jetons et sale les codes. **Ne pas le changer après la mise en prod** (les codes déjà imprimés deviendraient invalides) |
-| `ADMIN_TOKEN` | désactivé | Active `GET /api/admin/cards` (état des cartes) avec `Authorization: Bearer <token>` |
+| `ADMIN_USER` / `ADMIN_TOKEN` | désactivé | Identifiant + mot de passe de la page d'administration `/admin` (les deux requis) |
 | `MAX_DURATION_S` | `180` | Durée max d'un vocal (secondes) |
 | `MAX_UPLOAD_BYTES` | `26214400` | Taille max d'upload (25 Mo) |
 
@@ -154,10 +154,11 @@ cd /var/www/ravive && git pull && npm ci --omit=dev && pm2 restart ravive
 
 Une page d'administration existe sur `/admin`, protégée par mot de passe :
 
-1. Définir le mot de passe dans le `.env` : `ADMIN_TOKEN=un-mot-de-passe-solide`
-   (sans cette variable, la page et l'API d'admin sont désactivées), puis
+1. Définir l'identifiant et le mot de passe dans le `.env` :
+   `ADMIN_USER=...` et `ADMIN_TOKEN=un-mot-de-passe-solide`
+   (sans ces deux variables, la page et l'API d'admin sont désactivées), puis
    redémarrer l'application.
-2. Ouvrir `https://votre-domaine.fr/admin` → entrer le mot de passe.
+2. Ouvrir `https://votre-domaine.fr/admin` → entrer l'identifiant et le mot de passe.
 3. Depuis la page : générer un lot de cartes (le CSV `URL ; code` se télécharge
    dans le navigateur — les codes ne sont affichés qu'une seule fois), et suivre
    l'état de toutes les cartes (en attente / enregistrée, durée, dates).

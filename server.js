@@ -152,15 +152,16 @@ app.get('/api/cards/:slug/audio', (req, res) => {
 // ---------------------------------------------------------------------------
 // Admin : page de gestion des cartes, protégée par ADMIN_TOKEN (.env)
 // ---------------------------------------------------------------------------
+// Identifiants attendus : "identifiant:motdepasse" (ADMIN_USER / ADMIN_TOKEN du .env)
 function requireAdmin(req, res) {
-  if (!config.ADMIN_TOKEN) {
+  if (!config.ADMIN_USER || !config.ADMIN_TOKEN) {
     res.status(503).json({ error: 'admin_disabled' });
     return false;
   }
   const auth = String(req.headers.authorization || '');
   const given = auth.startsWith('Bearer ') ? auth.slice(7) : '';
   const a = Buffer.from(given);
-  const b = Buffer.from(config.ADMIN_TOKEN);
+  const b = Buffer.from(`${config.ADMIN_USER}:${config.ADMIN_TOKEN}`);
   if (a.length !== b.length || !crypto.timingSafeEqual(a, b)) {
     res.status(401).json({ error: 'unauthorized' });
     return false;

@@ -64,7 +64,7 @@
   loginForm.addEventListener('submit', function (e) {
     e.preventDefault();
     loginError.classList.remove('show');
-    token = document.getElementById('pass').value;
+    token = document.getElementById('user').value + ':' + document.getElementById('pass').value;
     refresh()
       .then(function () {
         sessionStorage.setItem('ravive_admin', token);
@@ -73,7 +73,7 @@
       .catch(function (err) {
         token = '';
         loginError.textContent = err.message === 'unauthorized'
-          ? 'Mot de passe incorrect.'
+          ? 'Identifiant ou mot de passe incorrect.'
           : 'Erreur de connexion au serveur.';
         loginError.classList.add('show');
       });

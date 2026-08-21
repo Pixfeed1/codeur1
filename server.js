@@ -66,6 +66,7 @@ app.get('/c/:slug', (req, res) => {
     slug: card.slug,
     status: card.status,
     duration: card.duration_s || null,
+    hasPhoto: !!card.photo_file,
     maxDuration: config.MAX_DURATION_S,
   };
   res
@@ -96,7 +97,50 @@ app.post('/api/cards/:slug/activate', (req, res) => {
   res.json({ token: issueToken(card.slug) });
 });
 
-// Étape 2 (acheteur) : upload du vocal validé — association définitive
+// Étape 2 (acheteur, facultative) : photo d'accompagnement.
+// Stockée en attente ("pending-<slug>") tant que le vocal n'est pas validé ;
+// elle n'est associée définitivement qu'avec lui.
+const IMAGE_EXT = { 'image/jpeg': 'jpg', 'image/png': 'png', 'image/webp': 'webp' };
+const IMAGE_MIME = Object.fromEntries(Object.entries(IMAGE_EXT).map(([m, e]) => [e, m]));
+
+function findPendingPhoto(slug) {
+  const file = fs
+    .readdirSync(config.PHOTO_DIR)
+    .find((f) => f.startsWith(`pending-${slug}.`));
+  return file || null;
+}
+
+function deletePendingPhoto(slug) {
+  const file = findPendingPhoto(slug);
+  if (file) fs.unlinkSync(path.join(config.PHOTO_DIR, file));
+}
+
+app.post(
+  '/api/cards/:slug/photo',
+  express.raw({ type: () => true, limit: '8mb' }),
+  (req, res) => {
+    const card = db.getCard(req.params.slug);
+    if (!card) return res.status(404).json({ error: 'unknown_card' });
+    if (card.status === 'recorded') return res.status(423).json({ error: 'already_recorded' });
+
+    const auth = String(req.headers.authorization || '');
+    const token = auth.startsWith('Bearer ') ? auth.slice(7) : '';
+    if (!verifyToken(token, card.slug)) return res.status(401).json({ error: 'invalid_token' });
+
+    const mime = String(req.headers['content-type'] || '').split(';')[0].trim();
+    const ext = IMAGE_EXT[mime];
+    if (!ext) return res.status(415).json({ error: 'unsupported_format' });
+    if (!Buffer.isBuffer(req.body) || req.body.length < 100) {
+      return res.status(400).json({ error: 'empty_photo' });
+    }
+
+    deletePendingPhoto(card.slug);
+    fs.writeFileSync(path.join(config.PHOTO_DIR, `pending-${card.slug}.${ext}`), req.body);
+    res.json({ ok: true });
+  }
+);
+
+// Étape 3 (acheteur) : upload du vocal validé — association définitive
 const MIME_EXT = {
   'audio/webm': 'webm',
   'audio/ogg': 'ogg',
@@ -128,15 +172,41 @@ app.post(
     const file = `${card.slug}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
     fs.writeFileSync(path.join(config.AUDIO_DIR, file), req.body);
 
+    // Photo : attachée uniquement si le client la confirme (?photo=1),
+    // sinon la photo en attente est abandonnée (ex. retirée avant validation).
+    let photoFile = null;
+    let photoMime = null;
+    const pending = findPendingPhoto(card.slug);
+    if (req.query.photo === '1' && pending) {
+      const photoExt = pending.split('.').pop();
+      photoFile = `${card.slug}-${crypto.randomBytes(4).toString('hex')}.${photoExt}`;
+      fs.renameSync(path.join(config.PHOTO_DIR, pending), path.join(config.PHOTO_DIR, photoFile));
+      photoMime = IMAGE_MIME[photoExt];
+    } else if (pending) {
+      deletePendingPhoto(card.slug);
+    }
+
     // attachRecording ne réussit qu'une fois (verrou en base) : si deux uploads
-    // arrivent en même temps, un seul gagne, l'autre fichier est nettoyé.
-    if (!db.attachRecording(card.slug, { file, mime, duration })) {
+    // arrivent en même temps, un seul gagne, les fichiers de l'autre sont nettoyés.
+    if (!db.attachRecording(card.slug, { file, mime, duration, photoFile, photoMime })) {
       fs.unlinkSync(path.join(config.AUDIO_DIR, file));
+      if (photoFile) fs.unlinkSync(path.join(config.PHOTO_DIR, photoFile));
       return res.status(423).json({ error: 'already_recorded' });
     }
     res.json({ ok: true });
   }
 );
+
+// Photo associée (destinataire)
+app.get('/api/cards/:slug/photo', (req, res) => {
+  const card = db.getCard(req.params.slug);
+  if (!card || card.status !== 'recorded' || !card.photo_file) {
+    return res.status(404).json({ error: 'no_photo' });
+  }
+  res.sendFile(path.join(config.PHOTO_DIR, card.photo_file), {
+    headers: { 'Content-Type': card.photo_mime, 'Cache-Control': 'private, max-age=3600' },
+  });
+});
 
 // Lecture du vocal (destinataire) — streaming avec support des Range requests
 app.get('/api/cards/:slug/audio', (req, res) => {

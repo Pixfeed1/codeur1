@@ -22,6 +22,15 @@ db.exec(`
   );
 `);
 
+// Migration douce pour les bases déjà en place (colonnes photo)
+for (const col of ['photo_file TEXT', 'photo_mime TEXT']) {
+  try {
+    db.exec(`ALTER TABLE cards ADD COLUMN ${col}`);
+  } catch (err) {
+    if (!String(err.message).includes('duplicate column')) throw err;
+  }
+}
+
 // Alphabet sans caractères ambigus (pas de 0/O, 1/I/L…)
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';
 
@@ -69,19 +78,23 @@ function markActivated(slug) {
 }
 
 // Association définitive : ne réussit que si la carte est encore vierge.
-function attachRecording(slug, { file, mime, duration }) {
+function attachRecording(slug, { file, mime, duration, photoFile = null, photoMime = null }) {
   const res = db
     .prepare(
       `UPDATE cards SET status = 'recorded', audio_file = ?, audio_mime = ?, duration_s = ?,
-       recorded_at = datetime('now') WHERE slug = ? AND status = 'pending'`
+       photo_file = ?, photo_mime = ?, recorded_at = datetime('now')
+       WHERE slug = ? AND status = 'pending'`
     )
-    .run(file, mime, duration, slug);
+    .run(file, mime, duration, photoFile, photoMime, slug);
   return res.changes === 1;
 }
 
 function listCards() {
   return db
-    .prepare('SELECT slug, status, duration_s, created_at, activated_at, recorded_at FROM cards ORDER BY id DESC')
+    .prepare(
+      `SELECT slug, status, duration_s, photo_file IS NOT NULL AS has_photo,
+       created_at, activated_at, recorded_at FROM cards ORDER BY id DESC`
+    )
     .all();
 }
 

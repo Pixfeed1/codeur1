@@ -19,6 +19,7 @@ if (fs.existsSync(envFile)) {
 
 const DATA_DIR = process.env.DATA_DIR || path.join(ROOT, 'data');
 fs.mkdirSync(path.join(DATA_DIR, 'audio'), { recursive: true });
+fs.mkdirSync(path.join(DATA_DIR, 'photos'), { recursive: true });
 fs.mkdirSync(path.join(DATA_DIR, 'exports'), { recursive: true });
 
 // SECRET : signe les jetons d'activation et sale les codes.
@@ -39,6 +40,7 @@ module.exports = {
   ROOT,
   DATA_DIR,
   AUDIO_DIR: path.join(DATA_DIR, 'audio'),
+  PHOTO_DIR: path.join(DATA_DIR, 'photos'),
   EXPORTS_DIR: path.join(DATA_DIR, 'exports'),
   DB_FILE: path.join(DATA_DIR, 'ravive.db'),
   PORT: Number(process.env.PORT || 3000),

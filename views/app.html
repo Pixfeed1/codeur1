@@ -50,11 +50,22 @@
         <svg id="recIconStop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>
       </button>
       <p class="hint" id="recHint">Touche le bouton pour enregistrer.</p>
+
+      <div class="photo-field">
+        <input type="file" id="photoInput" accept="image/*" hidden>
+        <button type="button" class="btn ghost small" id="photoBtn">+ Ajouter une photo (optionnel)</button>
+        <div class="photo-thumb" id="photoThumb" hidden>
+          <img id="photoImg" alt="Photo choisie">
+          <button type="button" id="photoRemove" aria-label="Retirer la photo">&#10005;</button>
+        </div>
+        <p class="hint small" id="photoHint" hidden>Elle s'affichera derrière ton message quand on l'écoutera.</p>
+      </div>
       <p class="error" id="recError"></p>
     </section>
 
     <!-- Écran 3 : réécoute avant validation -->
     <section class="screen" id="screen-preview">
+      <div class="bgphoto" id="previewBg"></div>
       <span class="badge gold">C'est enregistré</span>
       <h1>Réécoute avant de l'envoyer.</h1>
       <p class="lead">Tu peux recommencer autant de fois que tu veux. Une fois validé, ton message est lié à cette carte pour toujours.</p>
@@ -90,6 +101,7 @@
 
     <!-- Écran 5 : écoute (destinataire) -->
     <section class="screen" id="screen-listen">
+      <div class="bgphoto" id="listenBg"></div>
       <div class="deco">
         <span class="dot" style="background:var(--yellow)"></span>
         <span class="tile gold">

@@ -90,8 +90,24 @@ body {
   align-items: center;
   text-align: center;
   flex: 1;
+  position: relative;
+  overflow: hidden;
 }
 .screen.active { display: flex; }
+.screen > * { position: relative; z-index: 1; }
+
+/* Photo souvenir en arrière-plan (écrans réécoute et écoute) */
+.bgphoto {
+  position: absolute;
+  inset: 0;
+  z-index: 0 !important;
+  background-size: cover;
+  background-position: center;
+  opacity: 0;
+  transition: opacity 0.8s ease;
+}
+.bgphoto.on { opacity: 0.22; }
+.bgphoto.on.playing { opacity: 0.45; }
 
 .badge {
   background: var(--coral-soft);
@@ -242,6 +258,34 @@ h1 {
 .record-btn svg { width: 34px; height: 34px; }
 
 .hint { color: var(--ink-soft); font-size: 0.92rem; margin-top: 18px; }
+.hint.small { font-size: 0.82rem; margin-top: 8px; }
+
+/* Photo optionnelle (écran enregistrement) */
+.photo-field { display: flex; flex-direction: column; align-items: center; margin-top: 18px; }
+.btn.small { width: auto; margin-top: 0; padding: 10px 20px; font-size: 0.9rem; }
+.photo-thumb { position: relative; margin-top: 4px; }
+.photo-thumb img {
+  width: 96px;
+  height: 96px;
+  object-fit: cover;
+  border-radius: 18px;
+  border: 2px solid #fffdf6;
+  box-shadow: 0 8px 20px -10px rgba(101, 66, 43, 0.4);
+}
+.photo-thumb button {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  width: 28px;
+  height: 28px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--ink);
+  color: #fff;
+  font-size: 0.8rem;
+  cursor: pointer;
+  line-height: 1;
+}
 
 /* --- lecteur --- */
 .player {

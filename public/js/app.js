@@ -57,6 +57,11 @@
   if (state.status === 'recorded') {
     var listenAudio = new Audio('/api/cards/' + slug + '/audio');
     listenAudio.preload = 'metadata';
+    var listenBg = document.getElementById('listenBg');
+    if (state.hasPhoto) {
+      listenBg.style.backgroundImage = 'url(/api/cards/' + slug + '/photo)';
+      listenBg.classList.add('on');
+    }
     var listenPlay = document.getElementById('listenPlay');
     var iconPlay = document.getElementById('listenIconPlay');
     var iconPause = document.getElementById('listenIconPause');
@@ -74,6 +79,7 @@
     function syncIcon() {
       iconPlay.style.display = listenAudio.paused ? '' : 'none';
       iconPause.style.display = listenAudio.paused ? 'none' : '';
+      listenBg.classList.toggle('playing', !listenAudio.paused);
     }
     listenAudio.addEventListener('play', syncIcon);
     listenAudio.addEventListener('pause', syncIcon);
@@ -299,6 +305,56 @@
   });
 
   /* ------------------------------------------------------------------ */
+  /* Photo optionnelle : choisie sur le téléphone, compressée en local,  */
+  /* envoyée uniquement à la validation, verrouillée avec le vocal.      */
+  /* ------------------------------------------------------------------ */
+  var photoInput = document.getElementById('photoInput');
+  var photoBtn = document.getElementById('photoBtn');
+  var photoThumb = document.getElementById('photoThumb');
+  var photoImg = document.getElementById('photoImg');
+  var photoRemove = document.getElementById('photoRemove');
+  var photoHint = document.getElementById('photoHint');
+  var photoBlob = null;
+
+  photoBtn.addEventListener('click', function () { photoInput.click(); });
+
+  photoInput.addEventListener('change', function () {
+    var f = photoInput.files && photoInput.files[0];
+    if (!f) return;
+    // Redimensionne et compresse en JPEG (max 1600 px) avant tout envoi
+    var img = new Image();
+    var url = URL.createObjectURL(f);
+    img.onload = function () {
+      var max = 1600;
+      var scale = Math.min(1, max / Math.max(img.width, img.height));
+      var canvas = document.createElement('canvas');
+      canvas.width = Math.round(img.width * scale);
+      canvas.height = Math.round(img.height * scale);
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      canvas.toBlob(function (blob) {
+        URL.revokeObjectURL(url);
+        if (!blob) return;
+        photoBlob = blob;
+        photoImg.src = URL.createObjectURL(blob);
+        photoThumb.hidden = false;
+        photoHint.hidden = false;
+        photoBtn.textContent = 'Changer la photo';
+      }, 'image/jpeg', 0.82);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); };
+    img.src = url;
+    photoInput.value = '';
+  });
+
+  photoRemove.addEventListener('click', function () {
+    photoBlob = null;
+    photoImg.src = '';
+    photoThumb.hidden = true;
+    photoHint.hidden = true;
+    photoBtn.textContent = '+ Ajouter une photo (optionnel)';
+  });
+
+  /* ------------------------------------------------------------------ */
   /* Étape 3 : réécoute + validation                                    */
   /* ------------------------------------------------------------------ */
   var previewPlay = document.getElementById('previewPlay');
@@ -311,6 +367,13 @@
 
   function setupPreview() {
     stopPreview();
+    var previewBg = document.getElementById('previewBg');
+    if (photoBlob) {
+      previewBg.style.backgroundImage = 'url(' + photoImg.src + ')';
+      previewBg.classList.add('on');
+    } else {
+      previewBg.classList.remove('on');
+    }
     previewAudio = new Audio(URL.createObjectURL(recordedBlob));
     previewTime.textContent = fmt(recordedDuration);
     previewProgress.style.width = '0%';
@@ -349,11 +412,29 @@
     retryBtn.disabled = true;
     confirmBtn.textContent = 'Envoi en cours…';
 
-    fetch('/api/cards/' + slug + '/message?duration=' + Math.round(recordedDuration), {
-      method: 'POST',
-      headers: { 'Content-Type': recordedMime, 'Authorization': 'Bearer ' + token },
-      body: recordedBlob,
-    })
+    // La photo (si présente) part d'abord, puis le vocal finalise le tout
+    var sendPhoto = photoBlob
+      ? fetch('/api/cards/' + slug + '/photo', {
+          method: 'POST',
+          headers: { 'Content-Type': 'image/jpeg', 'Authorization': 'Bearer ' + token },
+          body: photoBlob,
+        }).then(function (r) {
+          if (!r.ok) throw new Error('photo_failed');
+        })
+      : Promise.resolve();
+
+    sendPhoto
+      .then(function () {
+        return fetch(
+          '/api/cards/' + slug + '/message?duration=' + Math.round(recordedDuration) +
+            '&photo=' + (photoBlob ? '1' : '0'),
+          {
+            method: 'POST',
+            headers: { 'Content-Type': recordedMime, 'Authorization': 'Bearer ' + token },
+            body: recordedBlob,
+          }
+        );
+      })
       .then(function (r) {
         if (r.ok) { show('done'); return; }
         return r.json().catch(function () { return {}; }).then(function (j) {

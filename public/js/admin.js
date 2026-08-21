@@ -49,6 +49,7 @@
           '<td><span class="tag ' + c.status + '">' +
             (c.status === 'recorded' ? 'enregistrée' : 'en attente') + '</span></td>' +
           '<td>' + (c.duration_s ? Math.round(c.duration_s) + ' s' : '—') + '</td>' +
+          '<td>' + (c.has_photo ? 'oui' : '—') + '</td>' +
           '<td>' + fmtDate(c.created_at) + '</td>' +
           '<td>' + fmtDate(c.recorded_at) + '</td>';
         body.appendChild(tr);

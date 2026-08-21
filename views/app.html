@@ -1,0 +1,127 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="robots" content="noindex">
+  <title>ravive — un souvenir à écouter</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/css/style.css">
+</head>
+<body>
+  <div class="wrap">
+    <header class="topbar">
+      <button class="back" id="backBtn" aria-label="Retour">&#8592;</button>
+      <a class="brand" href="/">ravive</a>
+    </header>
+
+    <!-- Écran 1 : activation (acheteur) -->
+    <section class="screen" id="screen-activate">
+      <div class="deco">
+        <span class="pill"></span>
+        <span class="tile rose">
+          <svg viewBox="0 0 54 26" fill="none"><path d="M3 13c5-9 8 9 13 0s8 9 13 0 8 9 13 0 6 5 9 0" stroke="#dd7355" stroke-width="2.6" stroke-linecap="round"/></svg>
+        </span>
+        <span class="dot"></span>
+      </div>
+      <p class="kicker">Un souvenir à créer</p>
+      <h1>À toi de commencer.</h1>
+      <p class="lead">Entre ton code pour donner vie à ce que tu veux transmettre.</p>
+      <form class="field" id="codeForm">
+        <label for="codeInput">Code d'activation</label>
+        <input id="codeInput" name="code" placeholder="RAV · 0000" autocomplete="one-time-code"
+               autocapitalize="characters" spellcheck="false" maxlength="12" required>
+        <p class="error" id="codeError"></p>
+        <button class="btn" id="codeSubmit" type="submit">Commencer</button>
+      </form>
+    </section>
+
+    <!-- Écran 2 : enregistrement -->
+    <section class="screen" id="screen-record">
+      <span class="badge">Laisse ta trace</span>
+      <h1>Quelques mots à garder.</h1>
+      <p class="lead">Une anecdote, un fou rire, une pensée… ou juste ta voix.</p>
+      <canvas class="wave" id="waveCanvas" width="640" height="192"></canvas>
+      <p class="timer"><span id="recTimer">00:00</span> <span class="max" id="recMax"></span></p>
+      <button class="record-btn" id="recordBtn" aria-label="Enregistrer">
+        <svg id="recIconMic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.94V22h2v-3.06A8 8 0 0 0 20 11h-2Z"/></svg>
+        <svg id="recIconStop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>
+      </button>
+      <p class="hint" id="recHint">Touche le bouton pour enregistrer.</p>
+      <p class="error" id="recError"></p>
+    </section>
+
+    <!-- Écran 3 : réécoute avant validation -->
+    <section class="screen" id="screen-preview">
+      <span class="badge gold">C'est enregistré</span>
+      <h1>Réécoute avant de l'envoyer.</h1>
+      <p class="lead">Tu peux recommencer autant de fois que tu veux. Une fois validé, ton message est lié à cette carte pour toujours.</p>
+      <div class="player">
+        <button class="play-btn" id="previewPlay" aria-label="Écouter">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>
+        </button>
+        <div class="meta">
+          <div class="bars" id="previewBars"></div>
+          <div class="title">Ton message vocal</div>
+          <div class="time"><span id="previewTime">0:00</span></div>
+        </div>
+      </div>
+      <div class="progress"><i id="previewProgress"></i></div>
+      <p class="error" id="uploadError"></p>
+      <button class="btn" id="confirmBtn">Valider et associer à la carte</button>
+      <button class="btn ghost" id="retryBtn">Recommencer</button>
+    </section>
+
+    <!-- Écran 4 : confirmation acheteur -->
+    <section class="screen" id="screen-done">
+      <div class="deco">
+        <span class="dot" style="background:var(--yellow)"></span>
+        <span class="tile gold">
+          <svg viewBox="0 0 54 26" fill="none"><path d="M3 13c5-9 8 9 13 0s8 9 13 0 8 9 13 0 6 5 9 0" stroke="#33291f" stroke-width="2.6" stroke-linecap="round"/></svg>
+        </span>
+        <span class="pill" style="background:var(--sage)"></span>
+      </div>
+      <p class="kicker">C'est fait</p>
+      <h1>Ta voix est en route.</h1>
+      <p class="lead">Ton message est maintenant lié à cette carte. Il ne reste plus qu'à l'offrir : un scan suffira pour l'écouter.</p>
+    </section>
+
+    <!-- Écran 5 : écoute (destinataire) -->
+    <section class="screen" id="screen-listen">
+      <div class="deco">
+        <span class="dot" style="background:var(--yellow)"></span>
+        <span class="tile gold">
+          <svg viewBox="0 0 54 26" fill="none"><path d="M3 13c5-9 8 9 13 0s8 9 13 0 8 9 13 0 6 5 9 0" stroke="#33291f" stroke-width="2.6" stroke-linecap="round"/></svg>
+        </span>
+        <span class="pill" style="background:var(--sage)"></span>
+      </div>
+      <p class="kicker">Pour toi</p>
+      <h1>Une voix t'attend.</h1>
+      <p class="lead">Quelqu'un a pensé à toi, quelque part.</p>
+      <div class="player">
+        <button class="play-btn" id="listenPlay" aria-label="Écouter le message">
+          <svg id="listenIconPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>
+          <svg id="listenIconPause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z"/></svg>
+        </button>
+        <div class="meta">
+          <div class="bars" id="listenBars"></div>
+          <div class="title">Message vocal</div>
+          <div class="time"><span id="listenTime">0:00</span></div>
+        </div>
+      </div>
+      <div class="progress"><i id="listenProgress"></i></div>
+      <p class="hint">À écouter aujourd'hui. À retrouver plus tard.</p>
+    </section>
+
+    <footer class="foot">
+      <div class="deco-dots"><i></i><i></i><i></i></div>
+      <a href="/mentions-legales">Mentions légales</a>
+    </footer>
+  </div>
+
+  <script>window.RAVIVE_STATE = __STATE__;</script>
+  <script src="/js/app.js"></script>
+</body>
+</html>

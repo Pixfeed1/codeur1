@@ -39,11 +39,49 @@ et à l'imprimeur du packaging (colonne code). Les codes ne sont **jamais**
 stockés en clair en base (empreinte HMAC uniquement) : si le CSV est perdu,
 les codes sont irrécupérables — regénérer des cartes.
 
+## Portabilité : conçu pour changer de serveur facilement
+
+Le principe : **l'application est jetable, seul le dossier `data/` compte.**
+Il contient la base SQLite, les fichiers audio, le secret de signature
+(`data/.secret`) et les exports CSV. Aucune donnée n'est stockée ailleurs,
+aucune dépendance à un service externe (pas de BDD séparée, pas de cloud).
+
+Bascule d'un serveur A (ex. dédié perso) vers un serveur B (ex. VPS) :
+
+```bash
+# Sur A : arrêter l'app puis archiver l'état
+pm2 stop ravive            # ou docker compose down
+tar czf ravive-data.tar.gz -C /var/www/ravive data
+
+# Sur B : installer l'app (voir section déploiement), puis restaurer
+scp ravive-data.tar.gz serveurB:/var/www/ravive/
+tar xzf ravive-data.tar.gz -C /var/www/ravive
+pm2 start server.js --name ravive   # ou docker compose up -d
+```
+
+Puis pointer le DNS du domaine vers le serveur B. Les URLs des cartes NFC ne
+changent pas (même domaine), les codes déjà imprimés restent valides (le
+secret voyage dans `data/.secret`). Interruption de service : le temps de la
+copie + propagation DNS.
+
+À savoir :
+- `DATA_DIR` (variable d'env) permet de placer `data/` où l'on veut.
+- `npm ci` recompile/retélécharge le binaire SQLite adapté au nouveau serveur —
+  ne jamais copier `node_modules` d'une machine à l'autre.
+- Une image **Docker** est fournie (`Dockerfile` + `docker-compose.yml`) : sur un
+  hôte avec Docker, `docker compose up -d` suffit, et la migration se résume au
+  même transfert du dossier `data/`.
+- Derrière un reverse proxy, mettre `TRUST_PROXY=1` (sinon l'anti-bruteforce
+  verrait tous les visiteurs derrière l'IP du proxy).
+- `GET /healthz` répond `{"ok":true}` pour la supervision.
+
 ## Configuration (`.env` à la racine, tout est optionnel)
 
 | Variable | Défaut | Rôle |
 |---|---|---|
 | `PORT` | `3000` | Port d'écoute |
+| `TRUST_PROXY` | `0` | Mettre `1` derrière Nginx/Caddy (vraie IP client pour l'anti-bruteforce) |
+| `DATA_DIR` | `./data` | Emplacement des données (base, audios, secret) |
 | `BASE_URL` | `http://localhost:3000` | Domaine public, utilisé pour les URL du CSV |
 | `SECRET` | auto-généré dans `data/.secret` | Signe les jetons et sale les codes. **Ne pas le changer après la mise en prod** (les codes déjà imprimés deviendraient invalides) |
 | `ADMIN_TOKEN` | désactivé | Active `GET /api/admin/cards` (état des cartes) avec `Authorization: Bearer <token>` |
@@ -64,7 +102,7 @@ sudo npm install -g pm2
 sudo mkdir -p /var/www/ravive && sudo chown $USER /var/www/ravive
 git clone <repo> /var/www/ravive && cd /var/www/ravive
 npm ci --omit=dev
-echo "BASE_URL=https://votre-domaine.fr" > .env
+printf "BASE_URL=https://votre-domaine.fr\nTRUST_PROXY=1\n" > .env
 
 # 3. Process manager (redémarre l'app en cas de crash ou de reboot)
 pm2 start server.js --name ravive

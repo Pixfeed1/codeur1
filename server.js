@@ -11,6 +11,9 @@ const { issueToken, verifyToken } = require('./src/tokens');
 
 const app = express();
 app.disable('x-powered-by');
+// Derrière un reverse proxy (Nginx…), TRUST_PROXY=1 permet de récupérer la
+// vraie IP client (X-Forwarded-For) — indispensable pour l'anti-bruteforce.
+if (config.TRUST_PROXY) app.set('trust proxy', config.TRUST_PROXY);
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(config.ROOT, 'public'), { maxAge: '1h' }));
 
@@ -156,8 +159,19 @@ app.get('/api/admin/cards', (req, res) => {
   res.json(db.listCards());
 });
 
+// Sonde de santé (supervision, load-balancer, docker healthcheck…)
+app.get('/healthz', (req, res) => res.json({ ok: true }));
+
 app.use((req, res) => sendView(res, '404.html', 404));
 
-app.listen(config.PORT, () => {
+const server = app.listen(config.PORT, () => {
   console.log(`ravive en écoute sur ${config.BASE_URL} (port ${config.PORT})`);
 });
+
+// Arrêt propre (pm2 reload, docker stop, migration de serveur…)
+for (const sig of ['SIGTERM', 'SIGINT']) {
+  process.on(sig, () => {
+    server.close(() => process.exit(0));
+    setTimeout(() => process.exit(0), 5000).unref();
+  });
+}

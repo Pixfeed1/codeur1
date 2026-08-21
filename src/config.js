@@ -50,4 +50,7 @@ module.exports = {
   MAX_UPLOAD_BYTES: Number(process.env.MAX_UPLOAD_BYTES || 25 * 1024 * 1024),
   // Validité du jeton d'activation (l'acheteur a le temps d'enregistrer)
   TOKEN_TTL_S: Number(process.env.TOKEN_TTL_S || 60 * 60),
+  // Nombre de proxys de confiance devant l'app (1 = un Nginx local).
+  // 0/absent = app exposée en direct (dev).
+  TRUST_PROXY: Number(process.env.TRUST_PROXY || 0),
 };

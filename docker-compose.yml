@@ -1,0 +1,12 @@
+services:
+  ravive:
+    build: .
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      BASE_URL: ${BASE_URL:-http://localhost:3000}
+      TRUST_PROXY: ${TRUST_PROXY:-1}
+    volumes:
+      # Tout l'état du service. Migrer de serveur = copier ce dossier.
+      - ./data:/app/data

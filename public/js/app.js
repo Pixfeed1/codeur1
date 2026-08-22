@@ -10,11 +10,11 @@
   var recordedBlob = null;
   var recordedMime = null;
   var recordedDuration = 0;
+  var photoBlob = null;
 
   var screens = {
     activate: document.getElementById('screen-activate'),
     record: document.getElementById('screen-record'),
-    preview: document.getElementById('screen-preview'),
     done: document.getElementById('screen-done'),
     listen: document.getElementById('screen-listen'),
   };
@@ -26,14 +26,9 @@
       screens[k].classList.toggle('active', k === name);
     });
     current = name;
-    backBtn.classList.toggle('show', name === 'record' || name === 'preview');
+    backBtn.classList.toggle('show', name === 'record');
     window.scrollTo(0, 0);
   }
-
-  backBtn.addEventListener('click', function () {
-    if (current === 'preview') { stopPreview(); show('record'); }
-    else if (current === 'record') { stopRecording(true); show('activate'); }
-  });
 
   function fmt(s) {
     s = Math.max(0, Math.round(s));
@@ -44,24 +39,32 @@
     el.innerHTML = '';
     for (var i = 0; i < n; i++) {
       var b = document.createElement('span');
-      b.style.height = (8 + Math.round(24 * Math.abs(Math.sin(i * 1.7 + 0.6)))) + 'px';
+      b.style.height = (10 + Math.round(26 * Math.abs(Math.sin(i * 1.7 + 0.6)))) + 'px';
       el.appendChild(b);
     }
   }
   bars(document.getElementById('previewBars'), 12);
-  bars(document.getElementById('listenBars'), 12);
+  bars(document.getElementById('listenBars'), 14);
 
   /* ------------------------------------------------------------------ */
   /* Parcours destinataire : la carte a déjà son message                */
   /* ------------------------------------------------------------------ */
   if (state.status === 'recorded') {
-    var listenAudio = new Audio('/api/cards/' + slug + '/audio');
-    listenAudio.preload = 'metadata';
     var listenBg = document.getElementById('listenBg');
     if (state.hasPhoto) {
-      listenBg.style.backgroundImage = 'url(/api/cards/' + slug + '/photo)';
-      listenBg.classList.add('on');
+      // La photo occupe tout l'écran ; un dégradé crème en haut et en bas
+      // garde les textes lisibles sans masquer l'image.
+      listenBg.style.backgroundImage =
+        'linear-gradient(180deg,' +
+        ' rgba(253,248,236,0.94) 0%, rgba(253,248,236,0.55) 22%,' +
+        ' rgba(253,248,236,0.12) 45%, rgba(253,248,236,0.12) 62%,' +
+        ' rgba(253,248,236,0.60) 84%, rgba(253,248,236,0.94) 100%),' +
+        ' url(/api/cards/' + slug + '/photo)';
+      listenBg.classList.add('full');
     }
+
+    var listenAudio = new Audio('/api/cards/' + slug + '/audio');
+    listenAudio.preload = 'metadata';
     var listenPlay = document.getElementById('listenPlay');
     var iconPlay = document.getElementById('listenIconPlay');
     var iconPause = document.getElementById('listenIconPause');
@@ -79,7 +82,6 @@
     function syncIcon() {
       iconPlay.style.display = listenAudio.paused ? '' : 'none';
       iconPause.style.display = listenAudio.paused ? 'none' : '';
-      listenBg.classList.toggle('playing', !listenAudio.paused);
     }
     listenAudio.addEventListener('play', syncIcon);
     listenAudio.addEventListener('pause', syncIcon);
@@ -143,8 +145,11 @@
   });
 
   /* ------------------------------------------------------------------ */
-  /* Étape 2 : enregistrement (MediaRecorder + waveform live)           */
+  /* Étape 2 : écran de création — vocal et photo dans n'importe quel   */
+  /* ordre ; la carte n'est scellée que sur clic explicite.             */
   /* ------------------------------------------------------------------ */
+  var voiceRecord = document.getElementById('voiceRecord');
+  var voicePreview = document.getElementById('voicePreview');
   var recordBtn = document.getElementById('recordBtn');
   var recIconMic = document.getElementById('recIconMic');
   var recIconStop = document.getElementById('recIconStop');
@@ -154,6 +159,12 @@
   var recError = document.getElementById('recError');
   var canvas = document.getElementById('waveCanvas');
   var ctx2d = canvas.getContext('2d');
+  var createBg = document.getElementById('createBg');
+  var createBadge = document.getElementById('createBadge');
+  var confirmBtn = document.getElementById('confirmBtn');
+  var sealHint = document.getElementById('sealHint');
+  var uploadError = document.getElementById('uploadError');
+  var retryBtn = document.getElementById('retryBtn');
 
   var maxDuration = state.maxDuration || 180;
   recMax.textContent = '/ ' + fmt(maxDuration);
@@ -166,6 +177,16 @@
   var rafId = null;
   var startedAt = 0;
   var timerId = null;
+
+  // L'écran de création reflète l'état : vocal à faire, ou vocal prêt.
+  function updateCreateUI() {
+    var hasVoice = !!recordedBlob;
+    voiceRecord.hidden = hasVoice;
+    voicePreview.hidden = !hasVoice;
+    confirmBtn.hidden = !hasVoice;
+    sealHint.hidden = !hasVoice;
+    createBadge.textContent = hasVoice ? 'C’est enregistré' : 'Laisse ta trace';
+  }
 
   function pickMime() {
     var candidates = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
@@ -296,7 +317,7 @@
     recordedMime = (recorder.mimeType || 'audio/webm').split(';')[0];
     recordedBlob = new Blob(chunks, { type: recordedMime });
     setupPreview();
-    show('preview');
+    updateCreateUI();
   }
 
   recordBtn.addEventListener('click', function () {
@@ -304,76 +325,23 @@
     else startRecording();
   });
 
-  /* ------------------------------------------------------------------ */
-  /* Photo optionnelle : choisie sur le téléphone, compressée en local,  */
-  /* envoyée uniquement à la validation, verrouillée avec le vocal.      */
-  /* ------------------------------------------------------------------ */
-  var photoInput = document.getElementById('photoInput');
-  var photoBtn = document.getElementById('photoBtn');
-  var photoThumb = document.getElementById('photoThumb');
-  var photoImg = document.getElementById('photoImg');
-  var photoRemove = document.getElementById('photoRemove');
-  var photoHint = document.getElementById('photoHint');
-  var photoBlob = null;
-
-  photoBtn.addEventListener('click', function () { photoInput.click(); });
-
-  photoInput.addEventListener('change', function () {
-    var f = photoInput.files && photoInput.files[0];
-    if (!f) return;
-    // Redimensionne et compresse en JPEG (max 1600 px) avant tout envoi
-    var img = new Image();
-    var url = URL.createObjectURL(f);
-    img.onload = function () {
-      var max = 1600;
-      var scale = Math.min(1, max / Math.max(img.width, img.height));
-      var canvas = document.createElement('canvas');
-      canvas.width = Math.round(img.width * scale);
-      canvas.height = Math.round(img.height * scale);
-      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
-      canvas.toBlob(function (blob) {
-        URL.revokeObjectURL(url);
-        if (!blob) return;
-        photoBlob = blob;
-        photoImg.src = URL.createObjectURL(blob);
-        photoThumb.hidden = false;
-        photoHint.hidden = false;
-        photoBtn.textContent = 'Changer la photo';
-      }, 'image/jpeg', 0.82);
-    };
-    img.onerror = function () { URL.revokeObjectURL(url); };
-    img.src = url;
-    photoInput.value = '';
+  backBtn.addEventListener('click', function () {
+    if (current !== 'record') return;
+    stopRecording(true);
+    stopPreview();
+    recordedBlob = null;
+    updateCreateUI();
+    show('activate');
   });
 
-  photoRemove.addEventListener('click', function () {
-    photoBlob = null;
-    photoImg.src = '';
-    photoThumb.hidden = true;
-    photoHint.hidden = true;
-    photoBtn.textContent = '+ Ajouter une photo (optionnel)';
-  });
-
-  /* ------------------------------------------------------------------ */
-  /* Étape 3 : réécoute + validation                                    */
-  /* ------------------------------------------------------------------ */
+  /* --- réécoute du vocal enregistré --- */
   var previewPlay = document.getElementById('previewPlay');
   var previewTime = document.getElementById('previewTime');
   var previewProgress = document.getElementById('previewProgress');
-  var uploadError = document.getElementById('uploadError');
-  var confirmBtn = document.getElementById('confirmBtn');
-  var retryBtn = document.getElementById('retryBtn');
   var previewAudio = null;
 
   function setupPreview() {
     stopPreview();
-    var previewBg = document.getElementById('previewBg');
-    if (photoBlob) {
-      previewBg.style.backgroundImage = 'url(' + photoImg.src + ')';
-      previewBg.classList.add('on');
-    } else {
-      previewBg.classList.remove('on');
-    }
     previewAudio = new Audio(URL.createObjectURL(recordedBlob));
     previewTime.textContent = fmt(recordedDuration);
     previewProgress.style.width = '0%';
@@ -401,9 +369,64 @@
     recordedBlob = null;
     recTimer.textContent = '0:00';
     recHint.textContent = 'Touche le bouton pour enregistrer.';
-    show('record');
+    updateCreateUI();
   });
 
+  /* ------------------------------------------------------------------ */
+  /* Photo : choisie sur le téléphone, compressée en local, ajoutable   */
+  /* ou modifiable à tout moment avant le scellage.                     */
+  /* ------------------------------------------------------------------ */
+  var photoInput = document.getElementById('photoInput');
+  var photoBtn = document.getElementById('photoBtn');
+  var photoThumb = document.getElementById('photoThumb');
+  var photoImg = document.getElementById('photoImg');
+  var photoRemove = document.getElementById('photoRemove');
+  var photoHint = document.getElementById('photoHint');
+
+  photoBtn.addEventListener('click', function () { photoInput.click(); });
+
+  photoInput.addEventListener('change', function () {
+    var f = photoInput.files && photoInput.files[0];
+    if (!f) return;
+    // Redimensionne et compresse en JPEG (max 1600 px) avant tout envoi
+    var img = new Image();
+    var url = URL.createObjectURL(f);
+    img.onload = function () {
+      var max = 1600;
+      var scale = Math.min(1, max / Math.max(img.width, img.height));
+      var canvas2 = document.createElement('canvas');
+      canvas2.width = Math.round(img.width * scale);
+      canvas2.height = Math.round(img.height * scale);
+      canvas2.getContext('2d').drawImage(img, 0, 0, canvas2.width, canvas2.height);
+      canvas2.toBlob(function (blob) {
+        URL.revokeObjectURL(url);
+        if (!blob) return;
+        photoBlob = blob;
+        photoImg.src = URL.createObjectURL(blob);
+        photoThumb.hidden = false;
+        photoHint.hidden = false;
+        photoBtn.textContent = 'Changer la photo';
+        createBg.style.backgroundImage = 'url(' + photoImg.src + ')';
+        createBg.classList.add('on');
+      }, 'image/jpeg', 0.82);
+    };
+    img.onerror = function () { URL.revokeObjectURL(url); };
+    img.src = url;
+    photoInput.value = '';
+  });
+
+  photoRemove.addEventListener('click', function () {
+    photoBlob = null;
+    photoImg.src = '';
+    photoThumb.hidden = true;
+    photoHint.hidden = true;
+    photoBtn.textContent = '+ Ajouter une photo (optionnel)';
+    createBg.classList.remove('on');
+  });
+
+  /* ------------------------------------------------------------------ */
+  /* Scellage : uniquement sur clic explicite                           */
+  /* ------------------------------------------------------------------ */
   confirmBtn.addEventListener('click', function () {
     if (!recordedBlob || !token) return;
     stopPreview();
@@ -412,7 +435,7 @@
     retryBtn.disabled = true;
     confirmBtn.textContent = 'Envoi en cours…';
 
-    // La photo (si présente) part d'abord, puis le vocal finalise le tout
+    // La photo (si présente) part d'abord, puis le vocal scelle le tout
     var sendPhoto = photoBlob
       ? fetch('/api/cards/' + slug + '/photo', {
           method: 'POST',
@@ -437,7 +460,7 @@
       })
       .then(function (r) {
         if (r.ok) { show('done'); return; }
-        return r.json().catch(function () { return {}; }).then(function (j) {
+        return r.json().catch(function () { return {}; }).then(function () {
           var msg = 'L’envoi a échoué. Vérifie ta connexion puis réessaie.';
           if (r.status === 423) msg = 'Cette carte a déjà un message associé.';
           if (r.status === 401) msg = 'Session expirée : recharge la page et entre à nouveau ton code.';
@@ -452,9 +475,10 @@
       .finally(function () {
         confirmBtn.disabled = false;
         retryBtn.disabled = false;
-        confirmBtn.textContent = 'Valider et associer à la carte';
+        confirmBtn.textContent = 'Sceller la carte';
       });
   });
 
+  updateCreateUI();
   show('activate');
 })();

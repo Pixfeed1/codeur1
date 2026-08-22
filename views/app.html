@@ -40,16 +40,37 @@
 
     <!-- Écran 2 : enregistrement -->
     <section class="screen" id="screen-record">
-      <span class="badge">Laisse ta trace</span>
+      <div class="bgphoto" id="createBg"></div>
+      <span class="badge" id="createBadge">Laisse ta trace</span>
       <h1>Quelques mots à garder.</h1>
-      <p class="lead">Une anecdote, un fou rire, une pensée… ou juste ta voix.</p>
-      <canvas class="wave" id="waveCanvas" width="640" height="192"></canvas>
-      <p class="timer"><span id="recTimer">00:00</span> <span class="max" id="recMax"></span></p>
-      <button class="record-btn" id="recordBtn" aria-label="Enregistrer">
-        <svg id="recIconMic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.94V22h2v-3.06A8 8 0 0 0 20 11h-2Z"/></svg>
-        <svg id="recIconStop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>
-      </button>
-      <p class="hint" id="recHint">Touche le bouton pour enregistrer.</p>
+      <p class="lead" id="createLead">Une anecdote, un fou rire, une pensée… ou juste ta voix. Photo et vocal, dans l'ordre que tu veux.</p>
+
+      <!-- Bloc vocal : enregistrement -->
+      <div class="create-voice" id="voiceRecord">
+        <canvas class="wave" id="waveCanvas" width="640" height="192"></canvas>
+        <p class="timer"><span id="recTimer">00:00</span> <span class="max" id="recMax"></span></p>
+        <button class="record-btn" id="recordBtn" aria-label="Enregistrer">
+          <svg id="recIconMic" viewBox="0 0 24 24" fill="currentColor"><path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4Zm6-4a6 6 0 0 1-12 0H4a8 8 0 0 0 7 7.94V22h2v-3.06A8 8 0 0 0 20 11h-2Z"/></svg>
+          <svg id="recIconStop" viewBox="0 0 24 24" fill="currentColor" style="display:none"><rect x="7" y="7" width="10" height="10" rx="2.5"/></svg>
+        </button>
+        <p class="hint" id="recHint">Touche le bouton pour enregistrer.</p>
+      </div>
+
+      <!-- Bloc vocal : réécoute (affiché une fois le vocal enregistré) -->
+      <div class="create-voice" id="voicePreview" hidden>
+        <div class="player">
+          <button class="play-btn" id="previewPlay" aria-label="Écouter">
+            <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>
+          </button>
+          <div class="meta">
+            <div class="bars" id="previewBars"></div>
+            <div class="title">Ton message vocal</div>
+            <div class="time"><span id="previewTime">0:00</span></div>
+          </div>
+        </div>
+        <div class="progress"><i id="previewProgress"></i></div>
+        <button class="btn ghost small" id="retryBtn" style="margin-top:14px">Recommencer le vocal</button>
+      </div>
 
       <div class="photo-field">
         <input type="file" id="photoInput" accept="image/*" hidden>
@@ -60,29 +81,11 @@
         </div>
         <p class="hint small" id="photoHint" hidden>Elle s'affichera derrière ton message quand on l'écoutera.</p>
       </div>
-      <p class="error" id="recError"></p>
-    </section>
 
-    <!-- Écran 3 : réécoute avant validation -->
-    <section class="screen" id="screen-preview">
-      <div class="bgphoto" id="previewBg"></div>
-      <span class="badge gold">C'est enregistré</span>
-      <h1>Réécoute avant de l'envoyer.</h1>
-      <p class="lead">Tu peux recommencer autant de fois que tu veux. Une fois validé, ton message est lié à cette carte pour toujours.</p>
-      <div class="player">
-        <button class="play-btn" id="previewPlay" aria-label="Écouter">
-          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>
-        </button>
-        <div class="meta">
-          <div class="bars" id="previewBars"></div>
-          <div class="title">Ton message vocal</div>
-          <div class="time"><span id="previewTime">0:00</span></div>
-        </div>
-      </div>
-      <div class="progress"><i id="previewProgress"></i></div>
+      <p class="error" id="recError"></p>
       <p class="error" id="uploadError"></p>
-      <button class="btn" id="confirmBtn">Valider et associer à la carte</button>
-      <button class="btn ghost" id="retryBtn">Recommencer</button>
+      <button class="btn" id="confirmBtn" hidden>Sceller la carte</button>
+      <p class="hint small" id="sealHint" hidden>Une fois scellée, la carte ne peut plus être modifiée.</p>
     </section>
 
     <!-- Écran 4 : confirmation acheteur -->
@@ -99,32 +102,24 @@
       <p class="lead">Ton message est maintenant lié à cette carte. Il ne reste plus qu'à l'offrir : un scan suffira pour l'écouter.</p>
     </section>
 
-    <!-- Écran 5 : écoute (destinataire) -->
-    <section class="screen" id="screen-listen">
+    <!-- Écran 5 : écoute (destinataire) — épuré, la photo en pleine lumière -->
+    <section class="screen listen" id="screen-listen">
       <div class="bgphoto" id="listenBg"></div>
-      <div class="deco">
-        <span class="dot" style="background:var(--yellow)"></span>
-        <span class="tile gold">
-          <svg viewBox="0 0 54 26" fill="none"><path d="M3 13c5-9 8 9 13 0s8 9 13 0 8 9 13 0 6 5 9 0" stroke="#33291f" stroke-width="2.6" stroke-linecap="round"/></svg>
-        </span>
-        <span class="pill" style="background:var(--sage)"></span>
+      <div class="listen-top">
+        <p class="kicker">Pour toi</p>
+        <h1>Une voix t'attend.</h1>
+        <p class="lead">Quelqu'un a pensé à toi, quelque part.</p>
       </div>
-      <p class="kicker">Pour toi</p>
-      <h1>Une voix t'attend.</h1>
-      <p class="lead">Quelqu'un a pensé à toi, quelque part.</p>
-      <div class="player">
-        <button class="play-btn" id="listenPlay" aria-label="Écouter le message">
+      <div class="listen-player">
+        <button class="play-btn big" id="listenPlay" aria-label="Écouter le message">
           <svg id="listenIconPlay" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5.5v13l11-6.5-11-6.5Z"/></svg>
           <svg id="listenIconPause" viewBox="0 0 24 24" fill="currentColor" style="display:none"><path d="M7 5h3.5v14H7V5Zm6.5 0H17v14h-3.5V5Z"/></svg>
         </button>
-        <div class="meta">
-          <div class="bars" id="listenBars"></div>
-          <div class="title">Message vocal</div>
-          <div class="time"><span id="listenTime">0:00</span></div>
-        </div>
+        <div class="bars" id="listenBars"></div>
+        <div class="time"><span id="listenTime">0:00</span></div>
+        <div class="progress slim"><i id="listenProgress"></i></div>
       </div>
-      <div class="progress"><i id="listenProgress"></i></div>
-      <p class="hint">À écouter aujourd'hui. À retrouver plus tard.</p>
+      <p class="hint listen-bottom">À écouter aujourd'hui. À retrouver plus tard.</p>
     </section>
 
     <footer class="foot">

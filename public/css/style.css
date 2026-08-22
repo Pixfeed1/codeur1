@@ -108,6 +108,41 @@ body {
 }
 .bgphoto.on { opacity: 0.22; }
 .bgphoto.on.playing { opacity: 0.45; }
+/* Mode plein : la photo est le décor (écran destinataire) ; le dégradé de
+   crème injecté avec l'image garde les textes lisibles en haut et en bas. */
+.bgphoto.full { opacity: 1; }
+
+/* --- écran destinataire épuré --- */
+.screen.listen { justify-content: space-between; min-height: 76dvh; }
+.listen-top { margin-top: 4px; }
+.listen-top .kicker { margin-top: 8px; }
+.listen-player {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  width: 100%;
+  margin: 24px 0;
+}
+.play-btn.big {
+  width: 88px;
+  height: 88px;
+  box-shadow: 0 16px 36px -12px rgba(201, 95, 66, 0.8);
+}
+.play-btn.big svg { width: 34px; height: 34px; }
+.listen-player .bars { display: flex; align-items: center; gap: 4px; height: 40px; }
+.listen-player .bars span { width: 5px; border-radius: 3px; background: var(--coral); }
+.listen-player .time {
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--ink);
+}
+.listen-player .progress { width: 72%; margin-top: 0; }
+.progress.slim { height: 5px; }
+.listen-bottom { margin-top: 0; margin-bottom: 4px; font-weight: 500; }
+
+/* --- écran de création : blocs vocal --- */
+.create-voice { width: 100%; display: flex; flex-direction: column; align-items: center; }
 
 .badge {
   background: var(--coral-soft);

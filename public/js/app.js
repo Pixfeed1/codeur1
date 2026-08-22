@@ -425,9 +425,31 @@
   });
 
   /* ------------------------------------------------------------------ */
-  /* Scellage : uniquement sur clic explicite                           */
+  /* Scellage : clic explicite + confirmation                           */
   /* ------------------------------------------------------------------ */
+  var sealModal = document.getElementById('sealModal');
+  var sealConfirm = document.getElementById('sealConfirm');
+  var sealCancel = document.getElementById('sealCancel');
+  var sealWithPhoto = document.getElementById('sealWithPhoto');
+
   confirmBtn.addEventListener('click', function () {
+    if (!recordedBlob || !token) return;
+    stopPreview();
+    sealWithPhoto.style.display = photoBlob ? '' : 'none';
+    sealModal.hidden = false;
+  });
+
+  sealCancel.addEventListener('click', function () { sealModal.hidden = true; });
+  sealModal.addEventListener('click', function (e) {
+    if (e.target === sealModal) sealModal.hidden = true;
+  });
+
+  sealConfirm.addEventListener('click', function () {
+    sealModal.hidden = true;
+    doSeal();
+  });
+
+  function doSeal() {
     if (!recordedBlob || !token) return;
     stopPreview();
     uploadError.classList.remove('show');
@@ -477,7 +499,7 @@
         retryBtn.disabled = false;
         confirmBtn.textContent = 'Sceller la carte';
       });
-  });
+  }
 
   updateCreateUI();
   show('activate');

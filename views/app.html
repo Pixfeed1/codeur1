@@ -88,6 +88,16 @@
       <p class="hint small" id="sealHint" hidden>Une fois scellée, la carte ne peut plus être modifiée.</p>
     </section>
 
+    <!-- Confirmation de scellage -->
+    <div class="modal" id="sealModal" hidden>
+      <div class="modal-card">
+        <h2>Sceller la carte ?</h2>
+        <p>Ton message<span id="sealWithPhoto"> et ta photo</span> seront liés à cette carte pour toujours. Tu ne pourras plus rien modifier ensuite.</p>
+        <button class="btn" id="sealConfirm">Oui, sceller définitivement</button>
+        <button class="btn ghost" id="sealCancel">Pas encore</button>
+      </div>
+    </div>
+
     <!-- Écran 4 : confirmation acheteur -->
     <section class="screen" id="screen-done">
       <div class="deco">

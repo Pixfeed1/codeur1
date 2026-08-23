@@ -134,15 +134,32 @@ sudo certbot --nginx -d votre-domaine.fr   # renouvellement automatique inclus
 
 ### Sauvegardes
 
-Tout est dans `/var/www/ravive/data`. Exemple de sauvegarde quotidienne :
+Tout l'état vit dans le dossier `data/` de l'application. Le script
+`scripts/backup.sh` en fait un snapshot quotidien :
 
 ```bash
-crontab -e
-# 0 3 * * * tar czf /var/backups/ravive-$(date +\%u).tar.gz -C /var/www/ravive data
+# une fois, pour programmer la sauvegarde de 3h du matin
+(crontab -l 2>/dev/null; echo "0 3 * * * APP_DIR=/home/ravive/ravive-app bash /home/ravive/ravive-app/scripts/backup.sh >> /var/log/ravive-backup.log 2>&1") | crontab -
 ```
 
-(7 archives tournantes, une par jour de la semaine. Penser à les copier
-hors du serveur régulièrement.)
+Chaque jour a son dossier complet dans `/var/backups/ravive/AAAA-MM-JJ`, mais
+les fichiers inchangés d'un jour à l'autre — un message vocal scellé ne bouge
+plus jamais — sont partagés par liens durs au lieu d'être dupliqués. Sept jours
+d'historique coûtent donc à peine plus qu'une seule copie des données, là où
+sept archives complètes en auraient coûté sept fois le volume. La base SQLite
+est copiée avec `sqlite3 .backup`, donc cohérente même si l'application écrit
+pendant la sauvegarde.
+
+Variables : `KEEP` (jours conservés, 7 par défaut), `DEST` (destination).
+Le script alerte dans le log si le disque dépasse 85 %.
+
+Restauration : arrêter le service, copier le contenu d'un dossier de snapshot
+dans `data/`, redémarrer.
+
+> Ces snapshots sont sur le même serveur : ils protègent d'une erreur
+> applicative ou d'une suppression, pas d'une perte du serveur. Copier
+> régulièrement un snapshot hors du serveur (l'hébergeur fournit par ailleurs
+> ses propres sauvegardes quotidiennes de la machine).
 
 ### Mise à jour de l'app
 

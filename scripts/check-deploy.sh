@@ -59,20 +59,28 @@ LOCAL=$(curl -s -m 5 "http://127.0.0.1:$PORT/healthz")
   || fail "pas de réponse healthz en local (reçu : ${LOCAL:-rien})" "tail -30 $APP_DIR/app.log"
 
 echo
-echo "[4] Proxy Apache"
-FOUND=0
-for f in std ssl; do
-  CONF=$(grep -rsl "ProxyPass / http://127.0.0.1:$PORT/" "/etc/apache2/conf.d/userdata/$f/2_4/" 2>/dev/null | grep "$DOMAIN")
-  [ -n "$CONF" ] && FOUND=$((FOUND+1))
-done
-[ "$FOUND" -ge 2 ] \
-  && pass "conf proxy présente (std + ssl) vers le port $PORT" \
-  || fail "conf proxy incomplète ($FOUND/2)" "vérifier /etc/apache2/conf.d/userdata/{std,ssl}/2_4/*/$DOMAIN/proxy.conf puis /usr/local/cpanel/scripts/rebuildhttpdconf && systemctl restart httpd"
+echo "[4] Reverse proxy (Nginx ou Apache/cPanel)"
+NGINX_CONF=$(grep -rsl "server_name.*$DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | head -1)
+if [ -n "$NGINX_CONF" ]; then
+  grep -q "127.0.0.1:$PORT" "$NGINX_CONF" \
+    && pass "conf Nginx présente ($NGINX_CONF) vers le port $PORT" \
+    || fail "la conf Nginx $NGINX_CONF ne pointe pas le port $PORT" "corriger proxy_pass puis nginx -t && systemctl reload nginx"
+else
+  FOUND=0
+  for f in std ssl; do
+    CONF=$(grep -rsl "ProxyPass / http://127.0.0.1:$PORT/" "/etc/apache2/conf.d/userdata/$f/2_4/" 2>/dev/null | grep "$DOMAIN")
+    [ -n "$CONF" ] && FOUND=$((FOUND+1))
+  done
+  [ "$FOUND" -ge 2 ] \
+    && pass "conf proxy Apache présente (std + ssl) vers le port $PORT" \
+    || fail "aucune conf de reverse proxy trouvée pour $DOMAIN" "créer le vhost Nginx, ou les proxy.conf cPanel puis rebuildhttpdconf"
+fi
 
-HTTP=$(curl -s -m 8 "http://$DOMAIN/healthz")
+# -L : suit la redirection HTTP -> HTTPS mise en place par certbot
+HTTP=$(curl -sL -m 8 "http://$DOMAIN/healthz")
 [ "$HTTP" = '{"ok":true}' ] \
-  && pass "le domaine répond en HTTP" \
-  || fail "le domaine ne joint pas l'app en HTTP (reçu : ${HTTP:0:60})" "rebuildhttpdconf + restart httpd ; vérifier que le DNS pointe ce serveur"
+  && pass "le domaine répond en HTTP (redirection HTTPS suivie)" \
+  || fail "le domaine ne joint pas l'app en HTTP (reçu : ${HTTP:0:60})" "vérifier le reverse proxy et que le DNS pointe ce serveur"
 
 echo
 echo "[5] HTTPS (obligatoire pour le micro)"
@@ -81,7 +89,7 @@ if [ "$HTTPS" = '{"ok":true}' ]; then
   EXP=$(echo | openssl s_client -servername "$DOMAIN" -connect "$DOMAIN:443" 2>/dev/null | openssl x509 -noout -enddate 2>/dev/null | cut -d= -f2)
   pass "HTTPS opérationnel (certificat expire : ${EXP:-?})"
 else
-  fail "HTTPS KO (reçu : ${HTTPS:0:60})" "cPanel → SSL/TLS Status → $DOMAIN → Run AutoSSL, puis relancer ce script"
+  fail "HTTPS KO (reçu : ${HTTPS:0:60})" "certbot --nginx -d $DOMAIN --redirect (ou AutoSSL sous cPanel), puis relancer ce script"
 fi
 
 echo

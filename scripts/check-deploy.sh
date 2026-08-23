@@ -60,7 +60,7 @@ LOCAL=$(curl -s -m 5 "http://127.0.0.1:$PORT/healthz")
 
 echo
 echo "[4] Reverse proxy (Nginx ou Apache/cPanel)"
-NGINX_CONF=$(grep -rsl "server_name.*$DOMAIN" /etc/nginx/sites-enabled/ 2>/dev/null | head -1)
+NGINX_CONF=$(grep -Rsl "server_name.*$DOMAIN" /etc/nginx/sites-enabled/ /etc/nginx/conf.d/ 2>/dev/null | head -1)
 if [ -n "$NGINX_CONF" ]; then
   grep -q "127.0.0.1:$PORT" "$NGINX_CONF" \
     && pass "conf Nginx présente ($NGINX_CONF) vers le port $PORT" \

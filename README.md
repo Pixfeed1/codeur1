@@ -1,4 +1,4 @@
-# ravive — web-app NFC de souvenirs vocaux (MVP)
+# ravive - web-app NFC de souvenirs vocaux (MVP)
 
 Chaque carte NFC encode une URL unique (`https://votre-domaine.fr/c/<identifiant>`).
 
@@ -12,9 +12,9 @@ Aucune application à installer : tout passe par le navigateur du téléphone
 
 ## Stack
 
-- **Node.js ≥ 20** + Express — serveur et API (4 routes)
-- **SQLite** (better-sqlite3) — la base = un fichier dans `data/`, sauvegarde triviale
-- Audios stockés sur disque dans `data/audio/`
+- **Node.js ≥ 20** + Express : serveur et API (4 routes)
+- **SQLite** (better-sqlite3) : la base est un simple fichier dans `data/`, sauvegarde triviale
+- Audios et photos stockés sur disque dans `data/audio/` et `data/photos/`
 - Front HTML/CSS/JS pur, aucun framework, aucune dépendance front
 
 Toutes les données vivent dans `data/` (créé automatiquement) : **sauvegarder ce
@@ -37,7 +37,7 @@ Le script affiche un CSV `url_nfc;code_activation` et l'enregistre dans
 `data/exports/`. C'est ce fichier qu'on transmet à l'encodeur NFC (colonne URL)
 et à l'imprimeur du packaging (colonne code). Les codes ne sont **jamais**
 stockés en clair en base (empreinte HMAC uniquement) : si le CSV est perdu,
-les codes sont irrécupérables — regénérer des cartes.
+les codes sont irrécupérables et il faut regénérer des cartes.
 
 ## Portabilité : conçu pour changer de serveur facilement
 
@@ -50,13 +50,14 @@ Bascule d'un serveur A (ex. dédié perso) vers un serveur B (ex. VPS) :
 
 ```bash
 # Sur A : arrêter l'app puis archiver l'état
-pm2 stop ravive            # ou docker compose down
-tar czf ravive-data.tar.gz -C /var/www/ravive data
+systemctl stop ravive
+tar czf ravive-data.tar.gz -C /home/ravive/ravive-app data
 
 # Sur B : installer l'app (voir section déploiement), puis restaurer
-scp ravive-data.tar.gz serveurB:/var/www/ravive/
-tar xzf ravive-data.tar.gz -C /var/www/ravive
-pm2 start server.js --name ravive   # ou docker compose up -d
+scp ravive-data.tar.gz serveurB:/home/ravive/ravive-app/
+tar xzf ravive-data.tar.gz -C /home/ravive/ravive-app
+chown -R ravive:ravive /home/ravive/ravive-app/data
+systemctl start ravive
 ```
 
 Puis pointer le DNS du domaine vers le serveur B. Les URLs des cartes NFC ne
@@ -66,7 +67,7 @@ copie + propagation DNS.
 
 À savoir :
 - `DATA_DIR` (variable d'env) permet de placer `data/` où l'on veut.
-- `npm ci` recompile/retélécharge le binaire SQLite adapté au nouveau serveur —
+- `npm ci` recompile ou retélécharge le binaire SQLite adapté au nouveau serveur :
   ne jamais copier `node_modules` d'une machine à l'autre.
 - Une image **Docker** est fournie (`Dockerfile` + `docker-compose.yml`) : sur un
   hôte avec Docker, `docker compose up -d` suffit, et la migration se résume au
@@ -93,27 +94,58 @@ copie + propagation DNS.
 Prévu pour la plus petite offre VPS (1 vCPU / 2 Go suffisent largement).
 
 ```bash
-# 1. Prérequis
-sudo apt update && sudo apt install -y nginx certbot python3-certbot-nginx
-curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash - && sudo apt install -y nodejs
-sudo npm install -g pm2
+# 1. Prérequis (en root)
+apt update && apt upgrade -y
+apt install -y nginx certbot python3-certbot-nginx git ufw build-essential sqlite3
+curl -fsSL https://deb.nodesource.com/setup_22.x | bash - && apt install -y nodejs
 
-# 2. Application
-sudo mkdir -p /var/www/ravive && sudo chown $USER /var/www/ravive
-git clone <repo> /var/www/ravive && cd /var/www/ravive
-npm ci --omit=dev
-printf "BASE_URL=https://votre-domaine.fr\nTRUST_PROXY=1\n" > .env
+# 2. Pare-feu (SSH d'abord, sinon on se coupe l'accès)
+ufw allow OpenSSH && ufw allow 'Nginx Full' && ufw --force enable
 
-# 3. Process manager (redémarre l'app en cas de crash ou de reboot)
-pm2 start server.js --name ravive
-pm2 save && pm2 startup   # suivre l'instruction affichée
+# 3. Utilisateur dédié et application
+adduser --disabled-password --gecos "" ravive
+su - ravive -c 'git clone <repo> ravive-app'
+su - ravive -c 'cd ravive-app && npm ci --omit=dev'
 
-# 4. Nginx en reverse proxy
-sudo tee /etc/nginx/sites-available/ravive <<'CONF'
+cat > /home/ravive/ravive-app/.env <<'ENV'
+BASE_URL=https://votre-domaine.fr
+TRUST_PROXY=1
+PORT=3000
+ADMIN_USER=identifiant-admin
+ADMIN_TOKEN=mot-de-passe-solide
+ENV
+chown ravive:ravive /home/ravive/ravive-app/.env
+
+# 4. Service systemd (démarre au boot, redémarre après incident)
+cat > /etc/systemd/system/ravive.service <<'UNIT'
+[Unit]
+Description=Ravive NFC Voice Messages Application
+After=network.target
+
+[Service]
+Type=simple
+User=ravive
+Group=ravive
+WorkingDirectory=/home/ravive/ravive-app
+Environment="NODE_ENV=production"
+ExecStart=/usr/bin/node server.js
+Restart=always
+RestartSec=5
+StandardOutput=append:/home/ravive/ravive-app/app.log
+StandardError=append:/home/ravive/ravive-app/app.log
+
+[Install]
+WantedBy=multi-user.target
+UNIT
+systemctl daemon-reload && systemctl enable --now ravive
+curl -s http://127.0.0.1:3000/healthz    # doit répondre {"ok":true}
+
+# 5. Nginx en reverse proxy
+cat > /etc/nginx/sites-available/ravive <<'CONF'
 server {
     listen 80;
     server_name votre-domaine.fr;
-    client_max_body_size 30m;      # uploads audio
+    client_max_body_size 30m;      # uploads audio et photo
     location / {
         proxy_pass http://127.0.0.1:3000;
         proxy_set_header Host $host;
@@ -122,12 +154,24 @@ server {
     }
 }
 CONF
-sudo ln -s /etc/nginx/sites-available/ravive /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
+ln -sf /etc/nginx/sites-available/ravive /etc/nginx/sites-enabled/ravive
+rm -f /etc/nginx/sites-enabled/default
+nginx -t && systemctl reload nginx
 
-# 5. HTTPS (obligatoire : le micro n'est accessible qu'en HTTPS)
-sudo certbot --nginx -d votre-domaine.fr   # renouvellement automatique inclus
+# 6. HTTPS (obligatoire : le micro n'est accessible qu'en HTTPS)
+# Vérifier d'abord que le domaine pointe vers ce serveur :
+#   getent hosts votre-domaine.fr
+certbot --nginx -d votre-domaine.fr --redirect   # renouvellement automatique inclus
+
+# 7. Recette : tout doit être vert
+APP_DIR=/home/ravive/ravive-app SERVICE=ravive \
+  bash /home/ravive/ravive-app/scripts/check-deploy.sh votre-domaine.fr
 ```
+
+Le module SQLite est compilé à l'installation : sans `build-essential`, le
+`npm ci` échoue avec `not found: make`. Et si le service ne démarre pas
+(erreur SEGV), c'est presque toujours que le `node` de l'`ExecStart` n'est pas
+celui qui a installé les modules : les deux doivent être le même binaire.
 
 > **Important** : sans HTTPS, les navigateurs bloquent l'accès au micro.
 > Certbot/Let's Encrypt est gratuit et se renouvelle tout seul.
@@ -143,8 +187,8 @@ Tout l'état vit dans le dossier `data/` de l'application. Le script
 ```
 
 Chaque jour a son dossier complet dans `/var/backups/ravive/AAAA-MM-JJ`, mais
-les fichiers inchangés d'un jour à l'autre — un message vocal scellé ne bouge
-plus jamais — sont partagés par liens durs au lieu d'être dupliqués. Sept jours
+les fichiers inchangés d'un jour à l'autre (un message vocal scellé ne bouge
+plus jamais) sont partagés par liens durs au lieu d'être dupliqués. Sept jours
 d'historique coûtent donc à peine plus qu'une seule copie des données, là où
 sept archives complètes en auraient coûté sept fois le volume. La base SQLite
 est copiée avec `sqlite3 .backup`, donc cohérente même si l'application écrit
@@ -164,7 +208,8 @@ dans `data/`, redémarrer.
 ### Mise à jour de l'app
 
 ```bash
-cd /var/www/ravive && git pull && npm ci --omit=dev && pm2 restart ravive
+su - ravive -c 'cd ravive-app && git pull && npm ci --omit=dev'
+systemctl restart ravive
 ```
 
 ## Administration des cartes (interface web)
@@ -177,7 +222,7 @@ Une page d'administration existe sur `/admin`, protégée par mot de passe :
    redémarrer l'application.
 2. Ouvrir `https://votre-domaine.fr/admin` → entrer l'identifiant et le mot de passe.
 3. Depuis la page : générer un lot de cartes (le CSV `URL ; code` se télécharge
-   dans le navigateur — les codes ne sont affichés qu'une seule fois), et suivre
+   dans le navigateur, les codes ne sont affichés qu'une seule fois), et suivre
    l'état de toutes les cartes (en attente / enregistrée, durée, dates).
 
 ## Production d'un lot de cartes (résumé du flux)
@@ -197,8 +242,8 @@ Une page d'administration existe sur `/admin`, protégée par mot de passe :
   enregistrée ne peut plus jamais être modifiée par l'API.
 - Les pages cartes sont en `noindex` (pas d'indexation des URLs privées).
 
-## Évolutions prévues (hors MVP)
+## Évolutions possibles
 
-- Photos et vidéos en plus de l'audio (même mécanique d'upload lié au slug)
-- Tableau de bord d'administration (l'API `GET /api/admin/cards` existe déjà)
+- Vidéo en plus du vocal et de la photo (même mécanique d'upload liée au slug)
+- Statistiques d'usage (nombre d'écoutes par carte, délai moyen entre scellage et écoute)
 - Migration SQLite → PostgreSQL si le volume l'exige un jour (couche données isolée dans `src/db.js`)

@@ -3,6 +3,7 @@
 const Database = require('better-sqlite3');
 const crypto = require('crypto');
 const config = require('./config');
+const schema = require('./schema');
 
 const db = new Database(config.DB_FILE);
 db.pragma('journal_mode = WAL');
@@ -30,6 +31,9 @@ for (const col of ['photo_file TEXT', 'photo_mime TEXT']) {
     if (!String(err.message).includes('duplicate column')) throw err;
   }
 }
+
+// Tables du produit cadres (voir src/schema.js)
+schema.migrate(db);
 
 // Alphabet sans caractères ambigus (pas de 0/O, 1/I/L…)
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';

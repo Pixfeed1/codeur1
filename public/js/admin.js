@@ -307,24 +307,38 @@
       grid.appendChild(d);
     });
 
-    // Contributions
+    // Contributions et leurs souvenirs
     var cbox = $('pdContribs');
     if (!p.contributions.length) cbox.innerHTML = '<p class="note">Aucune contribution pour l’instant.</p>';
+    var REL = { ami: 'ami·e', famille: 'famille', amour: 'en couple', collegue: 'collègue', autre: 'autre' };
     p.contributions.forEach(function (c) {
       var d = document.createElement('div');
       d.className = 'contrib' + (c.deletedAt ? ' deleted' : '');
+      var mems = c.memories.map(function (m) {
+        var icon = m.kind === 'voice' ? '🎙️' : m.kind === 'text' ? '✍️' : '📸';
+        return '<div class="mem' + (m.deletedAt ? ' deleted' : '') + '" data-mid="' + m.id + '">' +
+          '<div class="q">' + icon + ' ' + (m.free ? 'Mot libre' : esc(m.question || '')) + (c.star === m.id ? ' <span class="tag done">★ vu en premier</span>' : '') + (m.deletedAt ? ' <span class="tag sealed">masqué</span>' : '') + '</div>' +
+          (m.text ? '<div class="txt">' + esc(m.text) + '</div>' : '') +
+          (m.audio ? '<audio controls preload="none" data-src="' + esc(m.audio) + '"></audio>' + (m.duration ? '<span class="small muted"> ' + Math.round(m.duration) + ' s</span>' : '') : '') +
+          (m.photo ? '<div class="photo" style="width:120px;margin-top:6px"><img alt="" data-photo="' + esc(m.photo) + '"></div>' : '') +
+          '<div class="actions">' + (m.deletedAt
+            ? '<button class="btn inline small ghost" data-mrestore="' + m.id + '">Restaurer ce souvenir</button>'
+            : '<button class="btn inline small ghost danger" data-mhide="' + m.id + '">Masquer ce souvenir</button>') + '</div></div>';
+      }).join('');
       d.innerHTML = '<img alt="">' +
-        '<div class="body"><b>' + esc(c.name) + '</b> <span class="small muted">· ' + (c.kind === 'voice' ? 'vocal ' + (c.duration ? Math.round(c.duration) + ' s' : '') : c.kind === 'text' ? 'texte' : 'incomplet') +
+        '<div class="body"><b>' + esc(c.name) + '</b> <span class="small muted">· ' + (REL[c.relation] || 'lien non précisé') + ' · ' + c.memories.length + ' souvenir(s)' +
         (c.status !== 'done' ? ' · <span class="tag off">brouillon</span>' : '') + (c.deletedAt ? ' · <span class="tag sealed">masquée</span>' : '') + ' · ' + fmtDate(c.completedAt || c.createdAt) + '</span>' +
-        (c.question ? '<div class="q">' + esc(c.question) + '</div>' : '') +
-        (c.text ? '<div class="txt">' + esc(c.text) + '</div>' : '') +
-        (c.audio ? '<audio controls preload="none"></audio>' : '') +
+        (c.thumb ? '' : '<div class="small muted">Pas de photo pour le cadre</div>') +
+        mems +
         '<div class="actions">' + (c.deletedAt
           ? '<button class="btn inline small ghost" data-restore="' + c.id + '">Restaurer</button>'
-          : (c.status === 'done' ? '<button class="btn inline small ghost danger" data-hide="' + c.id + '">Masquer cette contribution</button>' : '')) + '</div></div>';
-      if (c.thumb) authImg(d.querySelector('img'), c.thumb); else d.querySelector('img').remove();
-      var au = d.querySelector('audio');
-      if (au) au.addEventListener('play', function () { if (!au.dataset.loaded) { au.dataset.loaded = '1'; authUrl(c.audio).then(function (u) { au.src = u; au.play(); }); } }, { once: true });
+          : (c.status === 'done' ? '<button class="btn inline small ghost danger" data-hide="' + c.id + '">Masquer toute la contribution</button>' : '')) + '</div></div>';
+      var av = d.querySelector('img');
+      if (c.selfie) authImg(av, c.selfie); else if (c.thumb) authImg(av, c.thumb); else av.remove();
+      Array.prototype.forEach.call(d.querySelectorAll('audio'), function (au) {
+        au.addEventListener('play', function () { if (!au.dataset.loaded) { au.dataset.loaded = '1'; authUrl(au.dataset.src).then(function (u) { au.src = u; au.play(); }); } }, { once: true });
+      });
+      Array.prototype.forEach.call(d.querySelectorAll('img[data-photo]'), function (im) { authImg(im, im.dataset.photo); });
       cbox.appendChild(d);
     });
 
@@ -347,6 +361,8 @@
       else if (t.dataset.replace) { var rf = $('pdReplaceFile'); rf.dataset.photo = t.dataset.replace; rf.click(); }
       else if (t.dataset.hide) { if (confirm('Masquer la contribution de ' + t.closest('.contrib').querySelector('b').textContent + ' ?')) act(api('DELETE', '/api/admin/projects/' + p.id + '/contributions/' + t.dataset.hide), 'Contribution masquée'); }
       else if (t.dataset.restore) act(api('POST', '/api/admin/projects/' + p.id + '/contributions/' + t.dataset.restore + '/restore'), 'Contribution restaurée');
+      else if (t.dataset.mhide) act(api('DELETE', '/api/admin/projects/' + p.id + '/memories/' + t.dataset.mhide), 'Souvenir masqué');
+      else if (t.dataset.mrestore) act(api('POST', '/api/admin/projects/' + p.id + '/memories/' + t.dataset.mrestore + '/restore'), 'Souvenir restauré');
     });
     $('pdReplaceFile').addEventListener('change', function () {
       var f = this.files[0], id = this.dataset.photo;
@@ -490,11 +506,12 @@
       d.questions.forEach(function (q) {
         var tr = document.createElement('tr');
         tr.innerHTML = '<td><input type="text" value="' + esc(q.text) + '" style="width:100%" data-text></td>' +
+          '<td><select data-cat>' + ['', 'dire', 'souv', 'dossier', 'nous', 'devant'].map(function (k) { return '<option value="' + k + '"' + (q.category === k ? ' selected' : '') + '>' + (k || '—') + '</option>'; }).join('') + '</select></td>' +
           '<td><input type="number" value="' + q.sort_order + '" style="width:70px" data-order></td>' +
           '<td><input type="checkbox" data-active' + (q.active ? ' checked' : '') + '></td>' +
           '<td class="nowrap"><button class="btn inline small" data-save>OK</button> <button class="btn inline small ghost danger" data-del>×</button></td>';
         tr.querySelector('[data-save]').addEventListener('click', function () {
-          api('PATCH', '/api/admin/questions/' + q.id, { text: tr.querySelector('[data-text]').value, sort_order: tr.querySelector('[data-order]').value, active: tr.querySelector('[data-active]').checked })
+          api('PATCH', '/api/admin/questions/' + q.id, { text: tr.querySelector('[data-text]').value, category: tr.querySelector('[data-cat]').value, sort_order: tr.querySelector('[data-order]').value, active: tr.querySelector('[data-active]').checked })
             .then(function () { toast('Question enregistrée'); return loadQuestions(); }).catch(fail);
         });
         tr.querySelector('[data-del]').addEventListener('click', function () {
@@ -507,7 +524,7 @@
   $('questionAdd').addEventListener('click', function () {
     var text = $('questionNew').value.trim();
     if (!text) return;
-    api('POST', '/api/admin/questions', { text: text, sort_order: 99 }).then(function () { $('questionNew').value = ''; toast('Question ajoutée'); return loadQuestions(); }).catch(fail);
+    api('POST', '/api/admin/questions', { text: text, category: $('questionCat').value, sort_order: 99 }).then(function () { $('questionNew').value = ''; toast('Question ajoutée'); return loadQuestions(); }).catch(fail);
   });
 
   /* -------------------------------------------------------------- formules */

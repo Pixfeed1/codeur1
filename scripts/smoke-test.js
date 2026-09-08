@@ -108,39 +108,54 @@ function fakeAudio() {
 
     console.log('\n3. Contributeurs');
     r = await api('GET', `/api/p/${slug}`);
-    check(r.status === 200 && r.body.open && r.body.recipientName === 'Chloé', 'page contributeur contextualisée');
+    check(r.status === 200 && r.body.open && r.body.recipientName === 'Chloé' && r.body.categories.length === 5, 'page contributeur contextualisée, 5 catégories');
+    r = await api('GET', `/api/p/${slug}/questions`);
+    check(r.status === 200 && r.body.questions.length === 25 && r.body.questions.every((q) => q.category), '25 questions mélangées et catégorisées');
+    const questions = r.body.questions;
     const names = ['Marc', 'Sophie', 'Léa'];
     const colors = ['#dd7355', '#8fb3a3', '#e0b64a'];
     for (let i = 0; i < names.length; i++) {
-      r = await api('POST', `/api/p/${slug}/contributions`, { body: { name: names[i] } });
-      check(r.status === 201 && r.body.token && r.body.question && r.body.question.text.includes('Chloé'), `${names[i]} : contribution créée avec question personnalisée`);
+      r = await api('POST', `/api/p/${slug}/contributions`, { body: { name: names[i], relation: i === 0 ? 'ami' : 'famille' } });
+      check(r.status === 201 && r.body.token, `${names[i]} : contribution créée`);
       const { id, token: ct } = r.body;
       const auth = { Authorization: `Bearer ${ct}` };
-      r = await api('POST', `/api/p/${slug}/contributions/${id}/complete`, { headers: auth });
+      r = await api('POST', `/api/p/${slug}/contributions/${id}/complete`, { headers: auth, body: {} });
       check(r.status === 400 && r.body.error === 'memory_required', 'validation refusée sans souvenir');
+      r = await api('POST', `/api/p/${slug}/contributions/${id}/selfie`, { body: await makeImage('#333', 300), headers: { ...auth, 'Content-Type': 'image/jpeg' } });
+      check(r.status === 200 && r.body.photoId, 'selfie enregistré');
       const img = await makeImage(colors[i]);
       r = await api('POST', `/api/p/${slug}/contributions/${id}/photo`, { body: img, headers: { ...auth, 'Content-Type': 'image/jpeg', 'X-Crop': JSON.stringify({ x: 0, y: 100, w: 900, h: 900 }) } });
-      check(r.status === 200 && r.body.photoId && r.body.crop.w === 900, 'photo traitée avec recadrage');
-      if (i === 0) {
-        r = await api('POST', `/api/p/${slug}/contributions/${id}/text`, { body: { text: 'x'.repeat(1200) }, headers: auth });
-        check(r.status === 400 && r.body.error === 'text_too_long', 'texte trop long refusé (1000 max)');
-        r = await api('POST', `/api/p/${slug}/contributions/${id}/text`, { body: { text: 'Le jour où on a raté le train à Lyon…' }, headers: auth });
-        check(r.status === 200, 'texte enregistré');
-      } else {
-        r = await api('POST', `/api/p/${slug}/contributions/${id}/audio?duration=42`, { body: fakeAudio(), headers: { ...auth, 'Content-Type': 'audio/webm' } });
-        check(r.status === 200 && r.body.duration === 42, 'vocal enregistré');
+      check(r.status === 200 && r.body.photoId && r.body.crop.w === 900, 'photo du cadre traitée avec recadrage');
+      r = await api('POST', `/api/p/${slug}/contributions/${id}/memories`, { body: { text: 'x'.repeat(1200), free: true }, headers: auth });
+      check(r.status === 400 && r.body.error === 'text_too_long', 'texte trop long refusé (1000 max)');
+      r = await api('POST', `/api/p/${slug}/contributions/${id}/memories`, { body: { text: 'Le jour où on a raté le train à Lyon…', free: true }, headers: auth });
+      check(r.status === 201 && r.body.free === true && r.body.kind === 'text', 'mot libre enregistré');
+      const freeId = r.body.id;
+      let starId = freeId;
+      if (i > 0) {
+        const q = questions[i];
+        r = await api('POST', `/api/p/${slug}/contributions/${id}/memories/audio?duration=42&question=${encodeURIComponent(q.text)}&category=${q.category}&questionId=${q.id}`, { body: fakeAudio(), headers: { ...auth, 'Content-Type': 'audio/webm' } });
+        check(r.status === 201 && r.body.kind === 'voice' && r.body.duration === 42 && r.body.question === q.text, 'réponse vocale à une question');
+        starId = r.body.id;
+        r = await api('POST', `/api/p/${slug}/contributions/${id}/memories/photo?question=${encodeURIComponent(questions[9].text)}&category=${questions[9].category}`, { body: await makeImage('#123456', 500), headers: { ...auth, 'Content-Type': 'image/jpeg' } });
+        check(r.status === 201 && r.body.kind === 'photo' && r.body.photo, 'réponse photo à une question');
+        const photoMem = r.body.id;
+        r = await api('DELETE', `/api/p/${slug}/contributions/${id}/memories/${photoMem}`, { headers: auth });
+        check(r.status === 200, 'souvenir supprimé par le contributeur');
       }
-      r = await api('POST', `/api/p/${slug}/contributions/${id}/complete`, { headers: auth });
+      r = await api('GET', `/api/p/${slug}/contributions/${id}/memories`, { headers: auth });
+      check(r.status === 200 && r.body.memories.length === (i > 0 ? 2 : 1), 'liste des souvenirs du contributeur');
+      r = await api('POST', `/api/p/${slug}/contributions/${id}/complete`, { headers: auth, body: { star: starId } });
       check(r.status === 200 && r.body.used === i + 1, `contribution validée (${i + 1}/25)`);
       if (r.status !== 200) console.log('     →', r.status, JSON.stringify(r.body));
-      r = await api('POST', `/api/p/${slug}/contributions/${id}/text`, { body: { text: 'trop tard' }, headers: auth });
+      r = await api('POST', `/api/p/${slug}/contributions/${id}/memories`, { body: { text: 'trop tard' }, headers: auth });
       check(r.status === 423, 'contribution validée non modifiable');
     }
 
     console.log('\n4. Organisateur : photos, composition, scellement');
     r = await api('GET', `/api/o/${token}`);
-    check(r.body.contributions.length === 3 && r.body.contributions.every((c) => c.text === undefined && c.audio === undefined), '3 contributions visibles sans leur contenu');
-    check(r.body.photos.length === 3, '3 photos visibles');
+    check(r.body.contributions.length === 3 && r.body.contributions.every((c) => c.text === undefined && c.audio === undefined && c.memories >= 1), '3 contributions visibles sans leur contenu');
+    check(r.body.photos.length === 3 && r.body.contributions.filter((c) => c.selfie).length === 3, '3 photos de cadre visibles (selfies et photos-souvenirs exclues)');
     const t12 = templates.find((t) => t.slotCount === 12) || templates[0];
     r = await api('POST', `/api/o/${token}/seal`, { body: { confirm: true } });
     check(r.status === 400 && r.body.error === 'no_template', 'scellement refusé sans gabarit');
@@ -181,8 +196,8 @@ function fakeAudio() {
     r = await api('POST', `/api/admin/projects/${proj.id}/frame`, { body: { slug: `${BASE}/f/${frameSlug}` }, headers: { Authorization: ADMIN } });
     check(r.status === 200 && r.body.frame.slug === frameSlug, 'cadre associé au projet (URL collée)');
     r = await api('GET', `/api/f/${frameSlug}`);
-    check(r.status === 200 && r.body.firstAccess === true && r.body.items.length === 3, 'premier accès : 3 souvenirs');
-    check(r.body.items.filter((i) => i.inReveal).length === 3 && r.body.items.some((i) => i.text) && r.body.items.some((i) => i.audio), 'reveal : un par proche, texte et vocaux présents');
+    check(r.status === 200 && r.body.firstAccess === true && r.body.people.length === 3 && r.body.items.length === 5, 'premier accès : 3 proches, 5 souvenirs');
+    check(r.body.items.filter((i) => i.inReveal).length === 3 && r.body.items.filter((i) => i.inReveal && i.kind === 'voice').length === 2, 'reveal : le souvenir étoilé de chaque proche (2 vocaux, 1 texte)');
     const audioUrl = r.body.items.find((i) => i.audio).audio;
     r = await api('GET', audioUrl, { raw: true });
     check(r.status === 200 && r.headers.get('content-type').startsWith('audio/'), 'vocal servi au destinataire');
@@ -199,12 +214,12 @@ function fakeAudio() {
 
     console.log('\n6. Administration');
     r = await api('GET', `/api/admin/projects/${proj.id}`, { headers: { Authorization: ADMIN } });
-    check(r.status === 200 && r.body.contributions.some((c) => c.text) && r.body.contributions.some((c) => c.audio), 'admin voit textes et vocaux');
+    check(r.status === 200 && r.body.contributions.some((c) => c.memories.some((m) => m.text)) && r.body.contributions.some((c) => c.memories.some((m) => m.audio)), 'admin voit textes et vocaux');
     check(r.body.emails.some((e) => e.type === 'project_access') && r.body.emails.some((e) => e.type === 'sealed'), 'emails journalisés (accès, scellement)');
     r = await api('DELETE', `/api/admin/projects/${proj.id}/contributions/${r.body.contributions[0].id}`, { headers: { Authorization: ADMIN } });
     check(r.status === 200, 'contribution masquée');
     r = await api('GET', `/api/f/${frameSlug}`);
-    check(r.body.items.length === 2, 'contribution masquée invisible pour le destinataire');
+    check(r.body.people.length === 2, 'contribution masquée invisible pour le destinataire');
     r = await api('GET', `/api/admin/projects/${proj.id}/export.zip`, { headers: { Authorization: ADMIN }, raw: true });
     const zip = Buffer.from(await r.arrayBuffer());
     check(r.status === 200 && zip.length > 10000 && zip.subarray(0, 2).toString() === 'PK', `export ZIP (${Math.round(zip.length / 1024)} Ko)`);

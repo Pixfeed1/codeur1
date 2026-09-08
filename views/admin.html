@@ -136,14 +136,15 @@
       <!-- Questions -->
       <div class="panel" id="tab-questions">
         <h1>Bibliothèque de questions</h1>
-        <p class="note">Une question est proposée à chaque contributeur (la moins utilisée dans le projet). <code>{prenom}</code> est remplacé par le prénom du destinataire.</p>
+        <p class="note">Les proches piochent parmi ces questions, une par une, par catégorie. Rédigez-les au féminin : elles sont converties automatiquement si le destinataire est un homme. <code>{prenom}</code> est remplacé par le prénom du destinataire.</p>
         <div class="toolbar">
-          <input type="text" id="questionNew" placeholder="Nouvelle question…" style="flex:1;min-width:260px">
+          <input type="text" id="questionNew" placeholder="Nouvelle question (rédigée au féminin, {prenom} facultatif)…" style="flex:1;min-width:260px">
+          <select id="questionCat"><option value="dire">❤️ Lui dire quelque chose</option><option value="souv">🥹 Se souvenir</option><option value="dossier">😂 Sortir un dossier</option><option value="nous">🫶 Parler de vous</option><option value="devant">✨ Regarder devant</option></select>
           <button class="btn inline" id="questionAdd">Ajouter</button>
         </div>
         <div class="tablewrap">
           <table>
-            <thead><tr><th>Question</th><th>Ordre</th><th>Active</th><th></th></tr></thead>
+            <thead><tr><th>Question</th><th>Catégorie</th><th>Ordre</th><th>Active</th><th></th></tr></thead>
             <tbody id="questionsBody"></tbody>
           </table>
         </div>
@@ -172,7 +173,9 @@
           <label>Prix d'une place supplémentaire (centimes)<input type="number" data-key="extra_seat_price_cents" min="0"></label>
           <label>Id variante Shopify « places supplémentaires »<input type="text" data-key="extra_seat_shopify_variant_id"></label>
           <label>SKU « places supplémentaires »<input type="text" data-key="extra_seat_shopify_sku"></label>
-          <label>Rappel avant la date de l'événement (jours)<input type="number" data-key="reminder_days_before" min="0" max="60"></label>
+          <label>Rappel avant la fin de collecte (jours)<input type="number" data-key="reminder_days_before" min="0" max="60"></label>
+          <label>Délai de fabrication et livraison (jours)<input type="number" data-key="fabrication_days" min="1" max="60"></label>
+          <label>Questions max. par proche<input type="number" data-key="max_memories_per_contributor" min="1" max="20"></label>
           <label>Nom de marque (emails)<input type="text" data-key="brand_name"></label>
           <label>Email de contact<input type="email" data-key="contact_email"></label>
           <label>URL de la boutique (https://…)<input type="url" data-key="shop_url"></label>

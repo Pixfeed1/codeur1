@@ -244,11 +244,12 @@ function saveQuestion(data) {
   if (!text) throw new Error('invalid_question');
   const active = data.active === false || data.active === 0 ? 0 : 1;
   const sort = Number(data.sort_order) || 0;
+  const category = data.category ? String(data.category).trim().slice(0, 40) : null;
   if (data.id) {
-    db.prepare('UPDATE questions SET text = ?, active = ?, sort_order = ? WHERE id = ?').run(text, active, sort, data.id);
+    db.prepare('UPDATE questions SET text = ?, active = ?, sort_order = ?, category = ? WHERE id = ?').run(text, active, sort, category, data.id);
     return db.prepare('SELECT * FROM questions WHERE id = ?').get(data.id);
   }
-  const r = db.prepare('INSERT INTO questions (text, active, sort_order) VALUES (?, ?, ?)').run(text, active, sort);
+  const r = db.prepare('INSERT INTO questions (text, active, sort_order, category) VALUES (?, ?, ?, ?)').run(text, active, sort, category);
   return db.prepare('SELECT * FROM questions WHERE id = ?').get(r.lastInsertRowid);
 }
 
@@ -256,8 +257,25 @@ function deleteQuestion(id) {
   db.prepare('DELETE FROM questions WHERE id = ?').run(id);
 }
 
-function fillQuestion(text, recipientName) {
-  return String(text).replace(/\{pr[ée]nom\}/gi, recipientName || 'lui');
+// Les questions sont rédigées au féminin avec {prenom} facultatif ; pour un
+// destinataire masculin, on bascule les pronoms (règles de la maquette v5).
+function genderize(text, gender) {
+  if (gender !== 'm') return text;
+  return String(text)
+    .replace(/à elle/g, 'à lui').replace(/pour elle/g, 'pour lui').replace(/avec elle/g, 'avec lui').replace(/chez elle/g, 'chez lui')
+    .replace(/\belle\b/g, 'il').replace(/\bElle\b/g, 'Il').replace(/\bcelle\b/g, 'celui')
+    .replace(/heureux\/se/g, 'heureux').replace(/\bla connaît\b/g, 'le connaît').replace(/\bla fêtée\b/g, 'le fêté');
+}
+
+function fillQuestion(text, recipientName, gender) {
+  const name = recipientName || (gender === 'm' ? 'lui' : 'elle');
+  return genderize(String(text).replace(/\{pr[ée]nom\}|\{p\}/gi, name), gender);
+}
+
+// Catégories de questions (réglage) : [clé, icône, titre, accroche]
+function questionCategories() {
+  const cats = getSetting('question_categories', []) || [];
+  return cats.map((c) => ({ key: c[0], icon: c[1], title: c[2], head: c[3] || '' }));
 }
 
 // Question proposée à un contributeur : la moins utilisée dans ce projet,
@@ -414,7 +432,8 @@ function rotateOrganizerToken(projectId) {
   return token;
 }
 
-const SETUP_FIELDS = ['recipient_name', 'project_name', 'occasion', 'event_date', 'organizer_name'];
+const SETUP_FIELDS = ['recipient_name', 'project_name', 'occasion', 'event_date', 'organizer_name', 'recipient_gender', 'deadline'];
+const GENDERS = ['f', 'm', 'autre'];
 
 function setupProject(id, data) {
   const p = getProject(id);
@@ -423,7 +442,8 @@ function setupProject(id, data) {
   for (const f of SETUP_FIELDS) {
     if (data[f] === undefined) continue;
     let v = data[f] == null ? null : String(data[f]).trim().slice(0, 120);
-    if (f === 'event_date' && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('invalid_date');
+    if ((f === 'event_date' || f === 'deadline') && v && !/^\d{4}-\d{2}-\d{2}$/.test(v)) throw new Error('invalid_date');
+    if (f === 'recipient_gender' && v && !GENDERS.includes(v)) throw new Error('invalid_gender');
     vals[f] = v || null;
   }
   const sets = Object.keys(vals).map((k) => `${k} = @${k}`);
@@ -440,6 +460,7 @@ function updateProjectAdmin(id, data) {
   const p = getProject(id);
   if (!p) return null;
   const allowed = [...SETUP_FIELDS, 'organizer_email', 'capacity', 'admin_notes', 'frame_text', 'template_id'];
+  if (data.recipient_gender && !GENDERS.includes(data.recipient_gender)) delete data.recipient_gender;
   const vals = {};
   for (const f of allowed) {
     if (data[f] === undefined) continue;
@@ -519,8 +540,10 @@ function projectStats() {
 function projectsNeedingReminder(daysBefore) {
   return db
     .prepare(
-      `SELECT * FROM projects WHERE status = 'collecting' AND reminder_sent_at IS NULL AND event_date IS NOT NULL
-       AND date(event_date) <= date('now', '+' || ? || ' days') AND date(event_date) >= date('now')`
+      `SELECT * FROM projects WHERE status = 'collecting' AND reminder_sent_at IS NULL
+       AND COALESCE(deadline, event_date) IS NOT NULL
+       AND date(COALESCE(deadline, event_date)) <= date('now', '+' || ? || ' days')
+       AND date(COALESCE(deadline, event_date)) >= date('now')`
     )
     .all(daysBefore);
 }
@@ -544,15 +567,104 @@ function countDone(projectId) {
     .get(projectId).n;
 }
 
-function createContribution(projectId, { name, questionId, questionText }) {
+const RELATIONS = ['ami', 'famille', 'amour', 'collegue', 'autre'];
+
+function createContribution(projectId, { name, relation }) {
   const token = newToken();
   const r = db
-    .prepare(
-      `INSERT INTO contributions (project_id, token_hash, contributor_name, question_id, question_text)
-       VALUES (?, ?, ?, ?, ?)`
-    )
-    .run(projectId, hashToken(token), name, questionId || null, questionText || null);
+    .prepare('INSERT INTO contributions (project_id, token_hash, contributor_name, relation) VALUES (?, ?, ?, ?)')
+    .run(projectId, hashToken(token), name, relation && RELATIONS.includes(relation) ? relation : null);
   return { contribution: getContribution(r.lastInsertRowid), token };
+}
+
+function updateContribution(id, { name, relation }) {
+  const c = getContribution(id);
+  if (!c) return null;
+  db.prepare('UPDATE contributions SET contributor_name = ?, relation = ? WHERE id = ?').run(
+    name != null ? String(name).trim().slice(0, 40) || c.contributor_name : c.contributor_name,
+    relation !== undefined ? (relation && RELATIONS.includes(relation) ? relation : null) : c.relation,
+    id
+  );
+  return getContribution(id);
+}
+
+function setStarMemory(contributionId, memoryId) {
+  db.prepare('UPDATE contributions SET star_memory_id = ? WHERE id = ?').run(memoryId || null, contributionId);
+}
+
+// ---------------------------------------------------------------------------
+// Souvenirs (mot libre et réponses aux questions)
+// ---------------------------------------------------------------------------
+function addMemory(projectId, contributionId, { kind, isFree = false, questionText = null, questionCategory = null, questionId = null, text = null, audio = null, photoId = null }) {
+  if (!['voice', 'text', 'photo'].includes(kind)) throw new Error('invalid_kind');
+  const sort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 AS s FROM memories WHERE contribution_id = ?').get(contributionId).s;
+  const r = db
+    .prepare(
+      `INSERT INTO memories (project_id, contribution_id, kind, is_free, question_text, question_category, question_id, text_body,
+         audio_file, audio_mime, audio_duration_s, photo_id, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+    )
+    .run(projectId, contributionId, kind, isFree ? 1 : 0, questionText, questionCategory, questionId, text,
+      audio ? audio.file : null, audio ? audio.mime : null, audio ? audio.duration_s : null, photoId, sort);
+  return getMemory(r.lastInsertRowid);
+}
+
+function getMemory(id) {
+  return db.prepare('SELECT * FROM memories WHERE id = ?').get(id);
+}
+
+function updateMemoryText(id, text) {
+  db.prepare("UPDATE memories SET text_body = ?, kind = 'text', audio_file = NULL, audio_mime = NULL, audio_duration_s = NULL WHERE id = ?").run(text, id);
+  return getMemory(id);
+}
+
+// Suppression définitive (parcours contributeur) : retourne les fichiers à effacer
+function deleteMemory(id) {
+  const m = getMemory(id);
+  if (!m) return null;
+  const photo = m.photo_id ? getPhoto(m.photo_id) : null;
+  db.prepare('DELETE FROM memories WHERE id = ?').run(id);
+  if (photo) db.prepare('DELETE FROM photos WHERE id = ?').run(photo.id);
+  db.prepare('UPDATE contributions SET star_memory_id = NULL WHERE star_memory_id = ?').run(id);
+  return { memory: m, photo };
+}
+
+// Modération admin : masque / restaure
+function setMemoryDeleted(id, deleted) {
+  db.prepare("UPDATE memories SET deleted_at = " + (deleted ? "datetime('now')" : 'NULL') + ' WHERE id = ?').run(id);
+}
+
+function listMemories(contributionId, { includeDeleted = false } = {}) {
+  return db
+    .prepare(
+      `SELECT m.*, ph.file_square AS photo_square, ph.file_thumb AS photo_thumb FROM memories m
+       LEFT JOIN photos ph ON ph.id = m.photo_id
+       WHERE m.contribution_id = ? ${includeDeleted ? '' : 'AND m.deleted_at IS NULL'}
+       ORDER BY m.sort_order, m.id`
+    )
+    .all(contributionId);
+}
+
+function countMemories(contributionId) {
+  return db.prepare('SELECT COUNT(*) AS n FROM memories WHERE contribution_id = ? AND deleted_at IS NULL').get(contributionId).n;
+}
+
+// Tous les souvenirs visibles d'un projet (contributions validées, non masquées),
+// avec les informations du proche : base du reveal et de la bibliothèque.
+function listProjectMemories(projectId) {
+  return db
+    .prepare(
+      `SELECT m.*, c.contributor_name, c.relation, c.star_memory_id, c.completed_at,
+         ph.file_square AS photo_square, ph.file_thumb AS photo_thumb,
+         (SELECT file_thumb FROM photos s WHERE s.contribution_id = c.id AND s.role = 'selfie' AND s.deleted_at IS NULL LIMIT 1) AS selfie_thumb,
+         (SELECT file_square FROM photos mp WHERE mp.contribution_id = c.id AND mp.role = 'main' AND mp.deleted_at IS NULL LIMIT 1) AS main_square
+       FROM memories m
+       JOIN contributions c ON c.id = m.contribution_id
+       LEFT JOIN photos ph ON ph.id = m.photo_id
+       WHERE m.project_id = ? AND m.deleted_at IS NULL AND c.status = 'done' AND c.deleted_at IS NULL
+       ORDER BY c.completed_at, c.id, (m.id = c.star_memory_id) DESC, m.sort_order, m.id`
+    )
+    .all(projectId);
 }
 
 function getContribution(id) {
@@ -583,8 +695,14 @@ function setContributionText(id, text) {
 }
 
 function completeContribution(id) {
+  if (countMemories(id) === 0) return false;
+  const c = getContribution(id);
+  if (c && !c.star_memory_id) {
+    const first = listMemories(id)[0];
+    if (first) setStarMemory(id, first.id);
+  }
   const r = db
-    .prepare("UPDATE contributions SET status = 'done', completed_at = datetime('now') WHERE id = ? AND status = 'draft' AND kind IS NOT NULL")
+    .prepare("UPDATE contributions SET status = 'done', completed_at = datetime('now') WHERE id = ? AND status = 'draft'")
     .run(id);
   return r.changes === 1;
 }
@@ -595,9 +713,13 @@ function listContributions(projectId, { includeDeleted = false, doneOnly = true 
   if (doneOnly) where.push("c.status = 'done'");
   return db
     .prepare(
-      `SELECT c.*, ph.id AS photo_id, ph.file_square, ph.file_thumb
+      `SELECT c.*, ph.id AS photo_id, ph.file_square, ph.file_thumb,
+         s.file_thumb AS selfie_thumb,
+         (SELECT COUNT(*) FROM memories m WHERE m.contribution_id = c.id AND m.deleted_at IS NULL) AS memories_count,
+         (SELECT GROUP_CONCAT(DISTINCT m.kind) FROM memories m WHERE m.contribution_id = c.id AND m.deleted_at IS NULL) AS kinds
        FROM contributions c
-       LEFT JOIN photos ph ON ph.contribution_id = c.id AND ph.deleted_at IS NULL
+       LEFT JOIN photos ph ON ph.contribution_id = c.id AND ph.role = 'main' AND ph.deleted_at IS NULL
+       LEFT JOIN photos s ON s.contribution_id = c.id AND s.role = 'selfie' AND s.deleted_at IS NULL
        WHERE ${where.join(' AND ')}
        ORDER BY c.completed_at, c.id`
     )
@@ -617,35 +739,40 @@ function restoreContribution(id, projectId) {
 // Brouillons abandonnés (contributeur parti en cours de route) : retourne les
 // lignes à purger (fichiers inclus) puis les supprime.
 function purgeDrafts(hours = 24) {
-  const rows = db
-    .prepare(
-      `SELECT c.id, c.audio_file, ph.id AS photo_id, ph.file_original, ph.file_square, ph.file_thumb
-       FROM contributions c LEFT JOIN photos ph ON ph.contribution_id = c.id
-       WHERE c.status = 'draft' AND c.created_at < datetime('now', '-' || ? || ' hours')`
-    )
-    .all(hours);
+  const drafts = db
+    .prepare("SELECT id FROM contributions WHERE status = 'draft' AND created_at < datetime('now', '-' || ? || ' hours')")
+    .all(hours)
+    .map((r) => r.id);
+  const rows = [];
   const del = db.transaction(() => {
-    for (const r of rows) {
-      db.prepare('DELETE FROM photos WHERE contribution_id = ?').run(r.id);
-      db.prepare('DELETE FROM contributions WHERE id = ?').run(r.id);
+    for (const id of drafts) {
+      for (const ph of db.prepare('SELECT * FROM photos WHERE contribution_id = ?').all(id)) rows.push(ph);
+      for (const m of db.prepare('SELECT * FROM memories WHERE contribution_id = ?').all(id)) rows.push(m);
+      db.prepare('DELETE FROM memories WHERE contribution_id = ?').run(id);
+      db.prepare('DELETE FROM photos WHERE contribution_id = ?').run(id);
+      db.prepare('DELETE FROM contributions WHERE id = ?').run(id);
     }
   });
   del();
-  return rows;
+  return rows; // photos ({file_original…}) et souvenirs ({audio_file}) dont les fichiers sont à effacer
 }
 
 // ---------------------------------------------------------------------------
 // Photos
 // ---------------------------------------------------------------------------
-function addPhoto(projectId, { contributionId = null, source = 'contributor', file_original, file_square, file_thumb, width, height, crop }) {
+function addPhoto(projectId, { contributionId = null, source = 'contributor', role = 'main', file_original, file_square, file_thumb, width, height, crop }) {
   const sort = db.prepare('SELECT COALESCE(MAX(sort_order), 0) + 1 AS s FROM photos WHERE project_id = ?').get(projectId).s;
   const r = db
     .prepare(
-      `INSERT INTO photos (project_id, contribution_id, source, file_original, file_square, file_thumb, width, height, crop, sort_order)
-       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+      `INSERT INTO photos (project_id, contribution_id, source, role, file_original, file_square, file_thumb, width, height, crop, sort_order)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
     )
-    .run(projectId, contributionId, source, file_original, file_square, file_thumb, width || null, height || null, crop ? JSON.stringify(crop) : null, sort);
+    .run(projectId, contributionId, source, role, file_original, file_square, file_thumb, width || null, height || null, crop ? JSON.stringify(crop) : null, sort);
   return getPhoto(r.lastInsertRowid);
+}
+
+function getContributionPhoto(contributionId, role) {
+  return db.prepare('SELECT * FROM photos WHERE contribution_id = ? AND role = ? AND deleted_at IS NULL ORDER BY id DESC').get(contributionId, role);
 }
 
 function getPhoto(id) {
@@ -656,17 +783,19 @@ function getProjectPhoto(projectId, id) {
   return db.prepare('SELECT * FROM photos WHERE id = ? AND project_id = ?').get(id, projectId);
 }
 
-function replaceContributionPhoto(contributionId) {
-  // Une contribution n'a qu'une photo : l'ancienne est retournée pour suppression des fichiers
-  const old = db.prepare('SELECT * FROM photos WHERE contribution_id = ?').all(contributionId);
-  db.prepare('DELETE FROM photos WHERE contribution_id = ?').run(contributionId);
+// Une contribution n'a qu'une photo par rôle (cadre, selfie) : l'ancienne est
+// retournée pour suppression de ses fichiers.
+function replaceContributionPhoto(contributionId, role = 'main') {
+  const old = db.prepare('SELECT * FROM photos WHERE contribution_id = ? AND role = ?').all(contributionId, role);
+  db.prepare('DELETE FROM photos WHERE contribution_id = ? AND role = ?').run(contributionId, role);
   return old;
 }
 
-function listPhotos(projectId, { includeDeleted = false, doneOnly = true } = {}) {
+function listPhotos(projectId, { includeDeleted = false, doneOnly = true, role = 'main' } = {}) {
   const where = ['ph.project_id = ?'];
   if (!includeDeleted) where.push('ph.deleted_at IS NULL');
   if (doneOnly) where.push("(ph.contribution_id IS NULL OR c.status = 'done')");
+  if (role) where.push(`ph.role = '${role === 'all' ? '' : role}'`.replace("ph.role = ''", '1 = 1'));
   return db
     .prepare(
       `SELECT ph.*, c.contributor_name FROM photos ph
@@ -744,15 +873,17 @@ module.exports = {
   getSetting, setSetting, allSettings,
   listFormulas, getFormula, findFormulaForLineItem, saveFormula, deleteFormula,
   listTemplates, getTemplate, getTemplateByKey, upsertTemplate, updateTemplate, deleteTemplate,
-  listQuestions, saveQuestion, deleteQuestion, pickQuestion, fillQuestion,
+  listQuestions, saveQuestion, deleteQuestion, pickQuestion, fillQuestion, genderize, questionCategories,
   createFrames, getFrameBySlug, getFrameByProject, listFrames, linkFrame, unlinkFrame,
   createProject, getProject, getProjectBySlug, getProjectByOrganizerToken, getProjectsByEmail, getProjectByOrder,
   rotateOrganizerToken, setupProject, updateProjectAdmin, setProjectStatus, addCapacity, markCapacityAlert,
   markReminder, markRevealSeen, resetReveal, listProjects, projectStats, projectsNeedingReminder,
-  usedSeats, countDone, createContribution, getContribution, getContributionByToken, setContributionQuestion,
+  usedSeats, countDone, createContribution, updateContribution, setStarMemory, getContribution, getContributionByToken, setContributionQuestion,
+  addMemory, getMemory, updateMemoryText, deleteMemory, setMemoryDeleted, listMemories, countMemories, listProjectMemories,
   setContributionVoice, setContributionText, completeContribution, listContributions, softDeleteContribution,
   restoreContribution, purgeDrafts,
-  addPhoto, getPhoto, getProjectPhoto, replaceContributionPhoto, listPhotos, softDeletePhoto, hardDeletePhoto,
+  addPhoto, getPhoto, getProjectPhoto, getContributionPhoto, replaceContributionPhoto, listPhotos, softDeletePhoto, hardDeletePhoto,
+  RELATIONS,
   setComposition, sealProject,
   logEmail, listEmails, recordShopifyEvent, setShopifyEventResult,
   STATUSES,

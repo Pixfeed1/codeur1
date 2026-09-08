@@ -140,6 +140,29 @@ function migrate(db) {
     );
     CREATE INDEX IF NOT EXISTS idx_photos_project ON photos(project_id);
 
+    -- Souvenirs : plusieurs par contribution (mot libre + réponses aux questions),
+    -- chacun en vocal, texte ou photo. Le souvenir « étoilé » est celui que le
+    -- destinataire découvre au reveal ; les autres restent dans la bibliothèque.
+    CREATE TABLE IF NOT EXISTS memories (
+      id INTEGER PRIMARY KEY AUTOINCREMENT,
+      project_id INTEGER NOT NULL REFERENCES projects(id) ON DELETE CASCADE,
+      contribution_id INTEGER NOT NULL REFERENCES contributions(id) ON DELETE CASCADE,
+      kind TEXT NOT NULL,                 -- voice | text | photo
+      is_free INTEGER NOT NULL DEFAULT 0, -- 1 = mot libre (sans question)
+      question_text TEXT,
+      question_category TEXT,
+      question_id INTEGER,
+      text_body TEXT,
+      audio_file TEXT,
+      audio_mime TEXT,
+      audio_duration_s REAL,
+      photo_id INTEGER REFERENCES photos(id) ON DELETE SET NULL,
+      sort_order INTEGER NOT NULL DEFAULT 0,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      deleted_at TEXT
+    );
+    CREATE INDEX IF NOT EXISTS idx_memories_contrib ON memories(contribution_id);
+
     -- Journal des emails envoyés (traçabilité, relances non dupliquées)
     CREATE TABLE IF NOT EXISTS email_log (
       id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -163,7 +186,15 @@ function migrate(db) {
   `);
 
   // Migrations douces (colonnes ajoutées après coup)
-  for (const [table, col] of [['projects', 'organizer_token_enc TEXT']]) {
+  for (const [table, col] of [
+    ['projects', 'organizer_token_enc TEXT'],
+    ['projects', 'recipient_gender TEXT'],       // f | m | autre
+    ['projects', 'deadline TEXT'],               // fin de collecte (YYYY-MM-DD), informative
+    ['contributions', 'relation TEXT'],          // ami | famille | amour | collegue | autre
+    ['contributions', 'star_memory_id INTEGER'], // souvenir montré au reveal
+    ['photos', "role TEXT NOT NULL DEFAULT 'main'"], // main (cadre) | selfie | memory
+    ['questions', 'category TEXT'],
+  ]) {
     try {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
     } catch (err) {
@@ -180,6 +211,16 @@ function migrate(db) {
     extra_seat_shopify_variant_id: '',
     extra_seat_shopify_sku: 'RAVIVE-EXTRA',
     reminder_days_before: 3,
+    fabrication_days: 7,       // livraison estimée = fin de collecte + N jours
+    max_memories_per_contributor: 4,
+    relations: [['ami', 'Ami·e'], ['famille', 'De la famille'], ['amour', 'En couple'], ['collegue', 'Collègue'], ['autre', 'Autre']],
+    question_categories: [
+      ['dire', '❤️', 'Lui dire quelque chose', 'Qu’est-ce que tu aimerais vraiment lui dire ?'],
+      ['souv', '🥹', 'Se souvenir', 'Quel souvenir te revient ?'],
+      ['dossier', '😂', 'Sortir un dossier', 'Allez, sors-nous un dossier 👀'],
+      ['nous', '🫶', 'Parler de vous', 'Qu’est-ce qui raconte le mieux votre relation ?'],
+      ['devant', '✨', 'Regarder devant', 'Et pour la suite ?'],
+    ],
     brand_name: 'Ravive',
     contact_email: '',
     shop_url: '',
@@ -200,18 +241,50 @@ function migrate(db) {
     ins.run("Jusqu'à 100 proches", 100, 6990, 'RAVIVE-100', 4);
   }
 
-  // Questions de départ (modifiables dans l'administration)
+  // Questions de départ (maquette contributeur v5), modifiables dans l'administration.
+  // Rédigées au féminin ; converties au masculin selon le genre du destinataire.
   const qcount = db.prepare('SELECT COUNT(*) AS n FROM questions').get().n;
   if (qcount === 0) {
-    const ins = db.prepare('INSERT INTO questions (text, sort_order) VALUES (?, ?)');
-    [
-      'Quel moment avec {prenom} te fait encore rire aujourd’hui ?',
-      'Quel est ton plus beau souvenir avec {prenom} ?',
-      'Qu’est-ce que tu admires le plus chez {prenom} ?',
-      'Si tu devais décrire {prenom} en trois mots ?',
-      'Qu’aimerais-tu dire à {prenom} que tu n’as jamais dit ?',
-      'Quel conseil ou quelle phrase de {prenom} t’a marqué ?',
-    ].forEach((t, i) => ins.run(t, i + 1));
+    const ins = db.prepare('INSERT INTO questions (text, category, sort_order) VALUES (?, ?, ?)');
+    const seed = {
+      dire: [
+        'Qu’est-ce que tu ne lui dis pas assez souvent ?',
+        'Qu’est-ce que tu admires chez elle, sans qu’elle le sache forcément ?',
+        'Si tu devais lui dire merci pour une seule chose, ce serait pour quoi ?',
+        'Qu’est-ce qu’elle a apporté dans ta vie sans forcément s’en rendre compte ?',
+        'Si tu pouvais lui faire comprendre une seule chose aujourd’hui, ce serait quoi ?',
+      ],
+      souv: [
+        'Ferme les yeux : quel moment avec elle te revient immédiatement ?',
+        'Quel souvenir avec elle te fait encore sourire rien qu’en y pensant ?',
+        'Raconte un moment banal avec elle qui, avec le recul, est devenu précieux.',
+        'Quelle photo de vous a toute une histoire derrière elle ? Raconte-la.',
+        'Quel endroit, quelle chanson ou quelle odeur te fait immédiatement penser à elle ?',
+      ],
+      dossier: [
+        'C’est quoi LE dossier sur elle que tu pourrais raconter toute ta vie ?',
+        'Quel moment vous fait encore rire alors qu’il n’était pas censé être drôle ?',
+        'Quelle est la chose la plus débile que vous ayez faite ensemble ?',
+        'Quel est son petit défaut que tu ne voudrais surtout pas qu’elle perde ?',
+        'Une histoire qui commence par « Je sais qu’on avait dit qu’on n’en parlerait plus, mais… » ?',
+      ],
+      nous: [
+        'À quel moment tu t’es dit : « cette personne va compter dans ma vie » ?',
+        'Qu’est-ce qui fait que votre relation ne ressemble à aucune autre ?',
+        'Qu’est-ce que vous seuls pouvez vraiment comprendre ?',
+        'Si votre relation était un seul souvenir, lequel ce serait ?',
+        'Qu’est-ce qui a changé entre votre première rencontre et aujourd’hui ?',
+      ],
+      devant: [
+        'Dans 20 ans, de quoi penses-tu que vous rigolerez encore ensemble ?',
+        'Quel moment aimerais-tu absolument vivre avec elle un jour ?',
+        'Si elle réécoute ce message dans 10 ans, qu’aimerais-tu lui dire ?',
+        'Qu’est-ce que tu lui souhaites vraiment pour la suite, pas la réponse bateau ?',
+        'Quelle promesse, même ridicule, aimerais-tu lui faire pour les années à venir ?',
+      ],
+    };
+    let i = 0;
+    for (const [cat, list] of Object.entries(seed)) for (const t of list) ins.run(t, cat, ++i);
   }
 }
 

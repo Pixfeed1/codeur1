@@ -54,14 +54,25 @@ function projectDetail(p) {
   const contributions = store.listContributions(p.id, { includeDeleted: true, doneOnly: false }).map((c) => ({
     id: c.id,
     name: c.contributor_name,
-    kind: c.kind,
+    relation: c.relation,
     status: c.status,
-    question: c.question_text,
-    text: c.text_body,
-    audio: c.audio_file ? `/api/admin/media/audio/${c.id}` : null,
-    duration: c.audio_duration_s,
     photoId: c.photo_id,
     thumb: c.photo_id ? `/api/admin/media/photo/${c.photo_id}/thumb` : null,
+    selfie: c.selfie_thumb ? `/api/admin/media/selfie/${c.id}` : null,
+    star: c.star_memory_id,
+    memories: store.listMemories(c.id, { includeDeleted: true }).map((m) => ({
+      id: m.id,
+      kind: m.kind,
+      free: !!m.is_free,
+      question: m.question_text,
+      category: m.question_category,
+      text: m.text_body,
+      audio: m.audio_file ? `/api/admin/media/audio/${m.id}` : null,
+      duration: m.audio_duration_s,
+      photoId: m.photo_id,
+      photo: m.photo_id ? `/api/admin/media/photo/${m.photo_id}/square` : null,
+      deletedAt: m.deleted_at,
+    })),
     createdAt: c.created_at,
     completedAt: c.completed_at,
     deletedAt: c.deleted_at,
@@ -289,6 +300,7 @@ router.get('/projects/:id/export.zip', (req, res) => {
   const template = p.template_id ? store.getTemplate(p.template_id) : null;
   const contributions = store.listContributions(p.id);
   const photos = store.listPhotos(p.id);
+  const memories = store.listProjectMemories(p.id);
   const manifest = {
     projet: {
       code: p.slug, destinataire: p.recipient_name, nom: p.project_name, occasion: p.occasion, date: p.event_date,
@@ -300,23 +312,28 @@ router.get('/projects/:id/export.zip', (req, res) => {
       emplacement: ph.slot, photo: `photos/carre/${ph.slot}_${ph.file_square}`, original: `photos/originales/${ph.file_original}`,
       recadrage: ph.crop ? JSON.parse(ph.crop) : null, proche: ph.contributor_name || null, source: ph.source,
     })),
-    contributions: contributions.map((c) => ({
-      id: c.id, prenom: c.contributor_name, type: c.kind, question: c.question_text, texte: c.text_body,
-      vocal: c.audio_file ? `vocaux/${c.id}_${safe(c.contributor_name)}${path.extname(c.audio_file)}` : null, duree_s: c.audio_duration_s,
-      photo: c.file_square ? `photos/carre/${photos.find((ph) => ph.id === c.photo_id) && photos.find((ph) => ph.id === c.photo_id).slot || 'x'}_${c.file_square}` : null,
-      date: c.completed_at,
+    proches: contributions.map((c) => ({
+      id: c.id, prenom: c.contributor_name, lien: c.relation, date: c.completed_at,
+      photo_cadre: c.file_square ? `photos/carre/${(photos.find((ph) => ph.id === c.photo_id) || {}).slot || 'x'}_${c.file_square}` : null,
+      souvenirs: memories.filter((m) => m.contribution_id === c.id).map((m) => ({
+        id: m.id, type: m.kind, mot_libre: !!m.is_free, question: m.question_text, categorie: m.question_category, texte: m.text_body,
+        vocal: m.audio_file ? `vocaux/${c.id}_${safe(c.contributor_name)}_${m.id}${path.extname(m.audio_file)}` : null, duree_s: m.audio_duration_s,
+        photo: m.photo_square ? `photos/souvenirs/${m.id}_${m.photo_square}` : null,
+        montre_en_premier: m.id === c.star_memory_id,
+      })),
     })),
   };
   zip.append(JSON.stringify(manifest, null, 2), { name: 'projet.json' });
   if (template) zip.file(path.join(config.TEMPLATES_DIR, template.file), { name: `gabarit/${template.file}` });
-  const texts = contributions.filter((c) => c.kind === 'text').map((c) => `${c.contributor_name}\n${c.question_text || ''}\n\n${c.text_body}\n`).join('\n----------------------------------------\n\n');
+  const texts = memories.filter((m) => m.kind === 'text').map((m) => `${m.contributor_name}\n${m.question_text || 'Mot libre'}\n\n${m.text_body}\n`).join('\n----------------------------------------\n\n');
   if (texts) zip.append(texts, { name: 'messages.txt' });
   for (const ph of photos) {
     zip.file(path.join(config.PHOTO_DIR, ph.file_original), { name: `photos/originales/${ph.file_original}` });
     zip.file(path.join(config.PHOTO_DIR, ph.file_square), { name: `photos/carre/${ph.slot || 'x'}_${ph.file_square}` });
   }
-  for (const c of contributions) {
-    if (c.audio_file) zip.file(path.join(config.AUDIO_DIR, c.audio_file), { name: `vocaux/${c.id}_${safe(c.contributor_name)}${path.extname(c.audio_file)}` });
+  for (const m of memories) {
+    if (m.audio_file) zip.file(path.join(config.AUDIO_DIR, m.audio_file), { name: `vocaux/${m.contribution_id}_${safe(m.contributor_name)}_${m.id}${path.extname(m.audio_file)}` });
+    if (m.photo_square) zip.file(path.join(config.PHOTO_DIR, m.photo_square), { name: `photos/souvenirs/${m.id}_${m.photo_square}` });
   }
   zip.finalize();
 });
@@ -329,10 +346,33 @@ router.get('/media/photo/:id/:size', (req, res) => {
   h.sendPhotoFile(res, file, 'private, no-store');
 });
 
-router.get('/media/audio/:cid', (req, res) => {
-  const c = store.getContribution(Number(req.params.cid));
-  if (!c || !c.audio_file) return res.status(404).json({ error: 'not_found' });
-  h.sendAudioFile(res, c.audio_file, c.audio_mime, 'private, no-store');
+router.get('/media/audio/:mid', (req, res) => {
+  const m = store.getMemory(Number(req.params.mid));
+  if (!m || !m.audio_file) return res.status(404).json({ error: 'not_found' });
+  h.sendAudioFile(res, m.audio_file, m.audio_mime, 'private, no-store');
+});
+
+router.get('/media/selfie/:cid', (req, res) => {
+  const ph = store.getContributionPhoto(Number(req.params.cid), 'selfie');
+  h.sendPhotoFile(res, ph && ph.file_thumb, 'private, no-store');
+});
+
+// Modération d'un souvenir isolé
+router.delete('/projects/:id/memories/:mid', (req, res) => {
+  const p = projectOr404(req, res);
+  if (!p) return;
+  const m = store.getMemory(Number(req.params.mid));
+  if (!m || m.project_id !== p.id) return res.status(404).json({ error: 'not_found' });
+  store.setMemoryDeleted(m.id, true);
+  res.json(projectDetail(p));
+});
+router.post('/projects/:id/memories/:mid/restore', (req, res) => {
+  const p = projectOr404(req, res);
+  if (!p) return;
+  const m = store.getMemory(Number(req.params.mid));
+  if (!m || m.project_id !== p.id) return res.status(404).json({ error: 'not_found' });
+  store.setMemoryDeleted(m.id, false);
+  res.json(projectDetail(p));
 });
 
 // ---------------------------------------------------------------------------
@@ -421,6 +461,8 @@ const EDITABLE_SETTINGS = {
   extra_seat_shopify_variant_id: (v) => String(v || '').trim(),
   extra_seat_shopify_sku: (v) => String(v || '').trim(),
   reminder_days_before: (v) => Math.max(0, Math.min(60, Number(v) || 0)),
+  fabrication_days: (v) => Math.max(1, Math.min(60, Number(v) || 7)),
+  max_memories_per_contributor: (v) => Math.max(1, Math.min(20, Number(v) || 4)),
   brand_name: (v) => String(v || 'Ravive').trim().slice(0, 40),
   contact_email: (v) => String(v || '').trim().slice(0, 120),
   shop_url: (v) => String(v || '').trim().replace(/\/$/, '').slice(0, 200),

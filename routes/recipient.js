@@ -36,29 +36,47 @@ function resolvePreview(req) {
 }
 
 function memoriesState(project, { preview, base }) {
-  const contributions = store.listContributions(project.id);
+  // Un item par souvenir ; regroupés par proche. Le reveal montre le souvenir
+  // étoilé de chaque proche (ou le premier), la bibliothèque montre tout.
+  const rows = store.listProjectMemories(project.id);
   const seen = new Set();
-  const items = contributions.map((c) => {
-    const key = c.contributor_name.trim().toLowerCase();
-    const inReveal = !seen.has(key);
-    seen.add(key);
+  const items = rows.map((m) => {
+    const isStar = m.star_memory_id ? m.id === m.star_memory_id : !seen.has(m.contribution_id);
+    const inReveal = isStar && !seen.has(m.contribution_id);
+    if (inReveal) seen.add(m.contribution_id);
     return {
-      id: c.id,
-      name: c.contributor_name,
-      kind: c.kind,
-      question: c.question_text,
-      text: c.kind === 'text' ? c.text_body : null,
-      audio: c.kind === 'voice' ? `${base}/audio/${c.id}` : null,
-      duration: c.audio_duration_s,
-      photo: c.photo_id ? `${base}/photo/${c.photo_id}/square` : null,
-      thumb: c.photo_id ? `${base}/photo/${c.photo_id}/thumb` : null,
+      id: m.id,
+      contributionId: m.contribution_id,
+      name: m.contributor_name,
+      relation: m.relation,
+      selfie: m.selfie_thumb ? `${base}/selfie/${m.contribution_id}` : null,
+      kind: m.kind,
+      free: !!m.is_free,
+      question: m.question_text,
+      category: m.question_category,
+      text: m.kind === 'text' ? m.text_body : null,
+      audio: m.kind === 'voice' ? `${base}/audio/${m.id}` : null,
+      duration: m.audio_duration_s,
+      photo: m.photo_id ? `${base}/photo/${m.photo_id}/square` : null,
+      background: m.photo_id ? `${base}/photo/${m.photo_id}/square` : m.main_square ? `${base}/main/${m.contribution_id}` : null,
       inReveal,
-      date: c.completed_at,
+      date: m.completed_at,
     };
   });
+  const people = [];
+  const byId = new Map();
+  for (const it of items) {
+    if (!byId.has(it.contributionId)) {
+      const person = { id: it.contributionId, name: it.name, relation: it.relation, selfie: it.selfie, photo: it.background && !it.photo ? it.background : null, memories: [] };
+      byId.set(it.contributionId, person);
+      people.push(person);
+    }
+    byId.get(it.contributionId).memories.push(it);
+  }
   return {
     preview: !!preview,
     recipientName: project.recipient_name,
+    recipientGender: project.recipient_gender || 'f',
     organizerName: project.organizer_name,
     occasion: project.occasion,
     projectName: project.project_name,
@@ -66,8 +84,10 @@ function memoriesState(project, { preview, base }) {
     firstAccess: !project.reveal_seen_at,
     ready: VISIBLE_STATUSES.has(project.status),
     status: project.status,
-    count: items.length,
+    count: people.length,
     items,
+    people,
+    categories: store.questionCategories(),
     visuals: h.publicVisuals(store),
   };
 }
@@ -120,12 +140,26 @@ function mountMedia(prefix, loader) {
     h.sendPhotoFile(res, req.params.size === 'thumb' ? ph.file_thumb : ph.file_square);
   });
 
-  router.get(`${prefix}/audio/:cid`, loader, (req, res) => {
+  router.get(`${prefix}/audio/:mid`, loader, (req, res) => {
+    const m = store.getMemory(Number(req.params.mid));
+    if (!m || m.project_id !== req.project.id || m.deleted_at || !m.audio_file) return res.status(404).json({ error: 'not_found' });
+    const c = store.getContribution(m.contribution_id);
+    if (!c || c.status !== 'done' || c.deleted_at) return res.status(404).json({ error: 'not_found' });
+    h.sendAudioFile(res, m.audio_file, m.audio_mime);
+  });
+
+  router.get(`${prefix}/selfie/:cid`, loader, (req, res) => {
     const c = store.getContribution(Number(req.params.cid));
-    if (!c || c.project_id !== req.project.id || c.deleted_at || c.status !== 'done' || !c.audio_file) {
-      return res.status(404).json({ error: 'not_found' });
-    }
-    h.sendAudioFile(res, c.audio_file, c.audio_mime);
+    if (!c || c.project_id !== req.project.id) return res.status(404).json({ error: 'not_found' });
+    const ph = store.getContributionPhoto(c.id, 'selfie');
+    h.sendPhotoFile(res, ph && ph.file_thumb);
+  });
+
+  router.get(`${prefix}/main/:cid`, loader, (req, res) => {
+    const c = store.getContribution(Number(req.params.cid));
+    if (!c || c.project_id !== req.project.id) return res.status(404).json({ error: 'not_found' });
+    const ph = store.getContributionPhoto(c.id, 'main');
+    h.sendPhotoFile(res, ph && ph.file_square);
   });
 }
 

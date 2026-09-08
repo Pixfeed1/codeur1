@@ -27,6 +27,7 @@ function purgeDrafts() {
     if (r.audio_file) media.deleteAudioFile(r.audio_file);
     if (r.file_original) media.deletePhotoFiles(r);
   }
+  // les photos des souvenirs ont déjà leurs lignes photos supprimées ci-dessus
   if (rows.length) console.log(`[jobs] ${rows.length} brouillon(s) de contribution purgé(s)`);
 }
 

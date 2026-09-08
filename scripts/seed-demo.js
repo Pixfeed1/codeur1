@@ -37,15 +37,28 @@ function audio() {
   return Buffer.concat([Buffer.from('1a45dfa3', 'hex'), require('crypto').randomBytes(6000)]);
 }
 
+const RELS = ['ami', 'famille', 'amour', 'collegue', 'autre'];
 async function contribute(project, i, kind) {
-  const q = store.pickQuestion(project.id);
-  const { contribution } = store.createContribution(project.id, { name: NAMES[i % NAMES.length], questionId: q && q.id, questionText: q && store.fillQuestion(q.text, project.recipient_name) });
+  const { contribution } = store.createContribution(project.id, { name: NAMES[i % NAMES.length], relation: RELS[i % RELS.length] });
   const ph = await photo(COLORS[i % COLORS.length], i + 1);
-  store.addPhoto(project.id, { contributionId: contribution.id, source: 'contributor', ...ph });
-  if (kind === 'text') store.setContributionText(contribution.id, TEXTS[i % TEXTS.length]);
-  else {
+  store.addPhoto(project.id, { contributionId: contribution.id, source: 'contributor', role: 'main', ...ph });
+  if (i % 2 === 0) {
+    const selfie = await photo(COLORS[(i + 3) % COLORS.length], '☺');
+    store.addPhoto(project.id, { contributionId: contribution.id, source: 'contributor', role: 'selfie', ...selfie });
+  }
+  // Mot libre + une réponse à une question
+  const qs = store.listQuestions(true);
+  const q = qs[i % qs.length];
+  const qtext = store.fillQuestion(q.text, project.recipient_name, project.recipient_gender);
+  if (kind === 'text') {
+    store.addMemory(project.id, contribution.id, { kind: 'text', isFree: true, text: TEXTS[i % TEXTS.length] });
     const a = await media.storeAudio(audio(), 'audio/webm', 20 + i * 5, 60);
-    store.setContributionVoice(contribution.id, a);
+    store.addMemory(project.id, contribution.id, { kind: 'voice', audio: a, questionText: qtext, questionCategory: q.category, questionId: q.id });
+  } else {
+    const a = await media.storeAudio(audio(), 'audio/webm', 20 + i * 5, 60);
+    const star = store.addMemory(project.id, contribution.id, { kind: 'voice', isFree: true, audio: a });
+    store.addMemory(project.id, contribution.id, { kind: 'text', text: TEXTS[(i + 1) % TEXTS.length], questionText: qtext, questionCategory: q.category, questionId: q.id });
+    store.setStarMemory(contribution.id, star.id);
   }
   store.completeContribution(contribution.id);
   return contribution;
@@ -59,12 +72,12 @@ async function contribute(project, i, kind) {
 
   // 1. Projet en collecte
   const a = store.createProject({ organizerEmail: 'clara@example.com', organizerName: 'Clara', formulaId: formulas[1].id, capacity: 25, shopify: { orderId: '9001', orderNumber: '#1001', customerEmail: 'clara@example.com' } });
-  store.setupProject(a.project.id, { recipient_name: 'Chloé', occasion: 'Anniversaire', event_date: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10) });
+  store.setupProject(a.project.id, { recipient_name: 'Chloé', recipient_gender: 'f', occasion: 'Anniversaire', event_date: new Date(Date.now() + 20 * 86400000).toISOString().slice(0, 10), deadline: new Date(Date.now() + 10 * 86400000).toISOString().slice(0, 10) });
   for (let i = 0; i < 6; i++) await contribute(a.project, i, i % 3 === 0 ? 'text' : 'voice');
 
   // 2. Projet scellé avec cadre et composition
   const b = store.createProject({ organizerEmail: 'karim@example.com', organizerName: 'Karim', formulaId: formulas[0].id, capacity: 10, shopify: { orderId: '9002', orderNumber: '#1002', customerEmail: 'karim@example.com' } });
-  store.setupProject(b.project.id, { recipient_name: 'Mamie Jeanne', occasion: '80 ans', event_date: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) });
+  store.setupProject(b.project.id, { recipient_name: 'Mamie Jeanne', recipient_gender: 'f', occasion: '80 ans', event_date: new Date(Date.now() + 5 * 86400000).toISOString().slice(0, 10) });
   for (let i = 0; i < 9; i++) await contribute(b.project, i + 3, i % 2 ? 'text' : 'voice');
   const tpl = templates.find((t) => t.slot_count === 12) || templates[0];
   if (tpl) {
@@ -83,7 +96,7 @@ async function contribute(project, i, kind) {
 
   // 3. Projet expédié
   const c = store.createProject({ organizerEmail: 'lucie@example.com', organizerName: 'Lucie', formulaId: formulas[0].id, capacity: 10 });
-  store.setupProject(c.project.id, { recipient_name: 'Tom', occasion: 'Départ en retraite' });
+  store.setupProject(c.project.id, { recipient_name: 'Tom', recipient_gender: 'm', occasion: 'Départ en retraite' });
   for (let i = 0; i < 3; i++) await contribute(c.project, i + 6, 'voice');
   store.setProjectStatus(c.project.id, 'sealed');
   store.setProjectStatus(c.project.id, 'shipped');

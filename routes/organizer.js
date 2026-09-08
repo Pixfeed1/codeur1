@@ -46,14 +46,27 @@ function photoView(ph, token) {
   };
 }
 
+function addDays(iso, n) {
+  const d = new Date(iso + 'T00:00');
+  d.setDate(d.getDate() + n);
+  return d.toISOString().slice(0, 10);
+}
+
 function dashboardState(project, token) {
   const contributions = store.listContributions(project.id).map((c) => ({
     id: c.id,
     name: c.contributor_name,
-    kind: c.kind, // vocal ou texte : l'organisateur sait le type, pas le contenu
+    relation: c.relation,
+    kinds: c.kinds ? c.kinds.split(',') : [], // types de souvenirs, jamais leur contenu
+    memories: c.memories_count,
     hasPhoto: !!c.photo_id,
+    selfie: c.selfie_thumb ? `/api/o/${token}/contributions/${c.id}/selfie` : null,
     completedAt: c.completed_at,
   }));
+  const fabricationDays = Number(store.getSetting('fabrication_days', 7));
+  const today = new Date().toISOString().slice(0, 10);
+  const deadline = project.deadline;
+  const recommendedDeadline = project.event_date ? (addDays(project.event_date, -10) > today ? addDays(project.event_date, -10) : today) : addDays(today, 14);
   const photos = store.listPhotos(project.id).map((ph) => photoView(ph, token));
   const templates = store.listTemplates(true).map((t) => ({
     id: t.id,
@@ -73,9 +86,15 @@ function dashboardState(project, token) {
     project: {
       slug: project.slug,
       recipientName: project.recipient_name,
+      recipientGender: project.recipient_gender || 'f',
       projectName: project.project_name,
       occasion: project.occasion,
       eventDate: project.event_date,
+      deadline,
+      recommendedDeadline,
+      estimatedDelivery: addDays(deadline || today, fabricationDays),
+      daysLeft: deadline ? Math.max(0, Math.round((new Date(deadline + 'T00:00') - new Date(today + 'T00:00')) / 86400000)) : null,
+      fabricationDays,
       organizerName: project.organizer_name,
       organizerEmail: project.organizer_email,
       status: project.status,
@@ -97,6 +116,7 @@ function dashboardState(project, token) {
     photos,
     templates,
     statuses: store.STATUSES,
+    relations: store.getSetting('relations', []),
     visuals: h.publicVisuals(store),
   };
 }
@@ -149,6 +169,13 @@ router.get('/api/o/:token/photos/:id/:size', loadProject, (req, res) => {
   if (!ph || ph.deleted_at) return res.status(404).json({ error: 'not_found' });
   const file = req.params.size === 'square' ? ph.file_square : ph.file_thumb;
   h.sendPhotoFile(res, file);
+});
+
+router.get('/api/o/:token/contributions/:id/selfie', loadProject, (req, res) => {
+  const c = store.getContribution(Number(req.params.id));
+  if (!c || c.project_id !== req.project.id) return res.status(404).json({ error: 'not_found' });
+  const ph = store.getContributionPhoto(c.id, 'selfie');
+  h.sendPhotoFile(res, ph && ph.file_thumb);
 });
 
 // Gabarits (SVG brut, pour l'aperçu dans le composeur)

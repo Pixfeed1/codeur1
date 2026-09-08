@@ -113,3 +113,7 @@ td.nowrap { white-space: nowrap; }
 pre.log { background: #fffdf6; border-radius: 12px; padding: 12px; font-size: 0.78rem; overflow: auto; max-height: 240px; margin-top: 10px; white-space: pre-wrap; }
 .toast { position: fixed; bottom: 22px; left: 50%; transform: translateX(-50%); background: var(--ink); color: #fff; padding: 12px 20px; border-radius: 999px; font-size: 0.9rem; z-index: 100; box-shadow: var(--shadow); }
 .toast.err { background: #b4472c; }
+
+.mem { border-left: 3px solid rgba(221,115,85,0.35); padding: 6px 10px; margin-top: 8px; background: rgba(255,253,246,0.7); border-radius: 0 10px 10px 0; }
+.mem.deleted { opacity: 0.45; }
+.mem .actions { margin-top: 6px; }

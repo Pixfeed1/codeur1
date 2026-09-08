@@ -162,6 +162,15 @@ function migrate(db) {
     );
   `);
 
+  // Migrations douces (colonnes ajoutées après coup)
+  for (const [table, col] of [['projects', 'organizer_token_enc TEXT']]) {
+    try {
+      db.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);
+    } catch (err) {
+      if (!String(err.message).includes('duplicate column')) throw err;
+    }
+  }
+
   // Valeurs par défaut des réglages (ne remplace jamais une valeur existante)
   const defaults = {
     max_audio_s: 60,

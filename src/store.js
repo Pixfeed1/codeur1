@@ -27,6 +27,34 @@ function hashToken(token) {
   return crypto.createHmac('sha256', config.SECRET).update(String(token)).digest('hex');
 }
 
+// Le jeton organisateur est recherché par empreinte (hashToken) mais aussi
+// conservé chiffré (AES-256-GCM, clé dérivée de SECRET) pour pouvoir figurer
+// dans les emails de relance sans invalider le lien déjà en usage.
+const ENC_KEY = crypto.createHash('sha256').update(`ravive-token:${config.SECRET}`).digest();
+
+function encryptToken(token) {
+  const iv = crypto.randomBytes(12);
+  const cipher = crypto.createCipheriv('aes-256-gcm', ENC_KEY, iv);
+  const enc = Buffer.concat([cipher.update(String(token), 'utf8'), cipher.final()]);
+  return Buffer.concat([iv, cipher.getAuthTag(), enc]).toString('base64url');
+}
+
+function decryptToken(blob) {
+  if (!blob) return null;
+  try {
+    const buf = Buffer.from(String(blob), 'base64url');
+    const decipher = crypto.createDecipheriv('aes-256-gcm', ENC_KEY, buf.subarray(0, 12));
+    decipher.setAuthTag(buf.subarray(12, 28));
+    return Buffer.concat([decipher.update(buf.subarray(28)), decipher.final()]).toString('utf8');
+  } catch (_) {
+    return null;
+  }
+}
+
+function getOrganizerToken(project) {
+  return decryptToken(project.organizer_token_enc);
+}
+
 function now() {
   return new Date().toISOString().replace('T', ' ').slice(0, 19);
 }
@@ -324,13 +352,14 @@ function createProject({ organizerEmail, organizerName, formulaId, capacity, sho
       try {
         const r = db
           .prepare(
-            `INSERT INTO projects (slug, organizer_token_hash, organizer_email, organizer_name, formula_id, capacity,
+            `INSERT INTO projects (slug, organizer_token_hash, organizer_token_enc, organizer_email, organizer_name, formula_id, capacity,
              recipient_name, occasion, event_date, project_name, shopify_order_id, shopify_order_number, shopify_customer_email)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             slug,
             hashToken(token),
+            encryptToken(token),
             String(organizerEmail || '').trim().toLowerCase(),
             organizerName || null,
             formulaId || null,
@@ -379,7 +408,9 @@ function getProjectByOrder(orderId) {
 // Nouveau lien organisateur : l'ancien cesse immédiatement de fonctionner
 function rotateOrganizerToken(projectId) {
   const token = newToken();
-  db.prepare("UPDATE projects SET organizer_token_hash = ?, updated_at = datetime('now') WHERE id = ?").run(hashToken(token), projectId);
+  db.prepare("UPDATE projects SET organizer_token_hash = ?, organizer_token_enc = ?, updated_at = datetime('now') WHERE id = ?").run(
+    hashToken(token), encryptToken(token), projectId
+  );
   return token;
 }
 
@@ -709,6 +740,7 @@ function setShopifyEventResult(id, result) {
 module.exports = {
   now,
   hashToken,
+  getOrganizerToken,
   getSetting, setSetting, allSettings,
   listFormulas, getFormula, findFormulaForLineItem, saveFormula, deleteFormula,
   listTemplates, getTemplate, getTemplateByKey, upsertTemplate, updateTemplate, deleteTemplate,

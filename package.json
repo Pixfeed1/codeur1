@@ -1,12 +1,14 @@
 {
   "name": "ravive-nfc-webapp",
   "version": "0.1.0",
-  "description": "Web-app mobile NFC — souvenirs vocaux personnalisés (MVP)",
+  "description": "Web-app mobile Ravive : cartes NFC vocales et cadres souvenirs collaboratifs",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
     "dev": "node --watch server.js",
-    "generate": "node scripts/generate-cards.js"
+    "generate": "node scripts/generate-cards.js",
+    "test": "node scripts/smoke-test.js",
+    "import-templates": "node scripts/import-templates.js"
   },
   "engines": {
     "node": ">=20"

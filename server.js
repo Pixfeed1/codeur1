@@ -8,12 +8,15 @@ const express = require('express');
 const config = require('./src/config');
 const db = require('./src/db');
 const { issueToken, verifyToken } = require('./src/tokens');
+const jobs = require('./src/jobs');
 
 const app = express();
 app.disable('x-powered-by');
 // Derrière un reverse proxy (Nginx…), TRUST_PROXY=1 permet de récupérer la
 // vraie IP client (X-Forwarded-For) — indispensable pour l'anti-bruteforce.
 if (config.TRUST_PROXY) app.set('trust proxy', config.TRUST_PROXY);
+// Le webhook Shopify vérifie la signature sur le corps brut : monté avant le parseur JSON
+app.use(require('./routes/shopify'));
 app.use(express.json({ limit: '32kb' }));
 app.use(express.static(path.join(config.ROOT, 'public'), { maxAge: '1h' }));
 
@@ -56,6 +59,16 @@ function sendView(res, name, status = 200) {
 
 app.get('/', (req, res) => sendView(res, 'index.html'));
 app.get('/mentions-legales', (req, res) => sendView(res, 'mentions-legales.html'));
+app.get('/confidentialite', (req, res) => sendView(res, 'confidentialite.html'));
+
+// ---------------------------------------------------------------------------
+// Produit cadres souvenirs : contributeur (/p), organisateur (/o),
+// destinataire (/f, /apercu), webhook Shopify, administration.
+// ---------------------------------------------------------------------------
+app.use('/media/visuals', express.static(config.VISUALS_DIR, { maxAge: '7d', index: false }));
+app.use(require('./routes/contributor'));
+app.use(require('./routes/organizer'));
+app.use(require('./routes/recipient'));
 
 // Page carte : la puce NFC pointe ici. Le même écran gère les deux parcours,
 // l'état initial est injecté côté serveur (jamais le code, jamais le hash).
@@ -241,6 +254,9 @@ function requireAdmin(req, res) {
 
 app.get('/admin', (req, res) => sendView(res, 'admin.html'));
 
+// API admin du produit cadres (même authentification)
+app.use('/api/admin', (req, res, next) => (requireAdmin(req, res) ? next() : undefined), require('./routes/admin'));
+
 app.get('/api/admin/cards', (req, res) => {
   if (!requireAdmin(req, res)) return;
   res.json({ baseUrl: config.BASE_URL, cards: db.listCards() });
@@ -272,6 +288,7 @@ app.use((req, res) => sendView(res, '404.html', 404));
 
 const server = app.listen(config.PORT, () => {
   console.log(`ravive en écoute sur ${config.BASE_URL} (port ${config.PORT})`);
+  jobs.start();
 });
 
 // Arrêt propre (pm2 reload, docker stop, migration de serveur…)

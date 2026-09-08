@@ -226,7 +226,23 @@ function fakeAudio() {
     r = await api('GET', `/api/o/${token}`);
     check(r.body.extraSeatsUrl && r.body.extraSeatsUrl.includes(`ravive_projet]=${slug}`), 'lien « places supplémentaires » pré-rempli');
 
-    console.log('\n8. Lien perdu');
+    console.log('\n8. Cartes NFC vocales (V1) toujours fonctionnelles');
+    r = await api('POST', '/api/admin/cards', { body: { count: 2 }, headers: { Authorization: ADMIN } });
+    check(r.status === 200 && r.body.cards.length === 2, 'lot de cartes généré');
+    const card = r.body.cards[0];
+    const cardSlug = card.url.split('/c/')[1];
+    r = await api('GET', `/c/${cardSlug}`, { raw: true });
+    check(r.status === 200 && (await r.text()).includes('"status":"pending"'), 'page carte servie');
+    r = await api('POST', `/api/cards/${cardSlug}/activate`, { body: { code: card.code } });
+    check(r.status === 200 && r.body.token, 'activation par code');
+    r = await api('POST', `/api/cards/${cardSlug}/message?duration=12`, { body: fakeAudio(), headers: { Authorization: `Bearer ${r.body.token}`, 'Content-Type': 'audio/webm' } });
+    check(r.status === 200, 'vocal scellé sur la carte');
+    r = await api('GET', `/api/cards/${cardSlug}/audio`, { raw: true });
+    check(r.status === 200, 'vocal lu par le destinataire');
+    r = await api('GET', '/api/admin/cards', { headers: { Authorization: ADMIN } });
+    check(r.body.cards.some((c) => c.slug === cardSlug && c.status === 'recorded'), 'carte enregistrée visible dans l’admin');
+
+    console.log('\n9. Lien perdu');
     r = await api('POST', '/api/access', { body: { email: 'clara@example.com' } });
     check(r.status === 200, 'demande de nouveau lien acceptée');
     r = await api('GET', `/api/o/${token}`);

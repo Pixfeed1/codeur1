@@ -220,7 +220,7 @@ router.put('/api/o/:token/composition', loadProject, requireEditable, express.js
 router.get('/api/o/:token/preview.svg', loadProject, (req, res) => {
   const p = req.project;
   const t = p.template_id ? store.getTemplate(p.template_id) : null;
-  if (!t) return res.status(404).json({ error: 'no_template' });
+  if (!t) return res.status(204).end(); // pas encore de gabarit : rien à dessiner
   const svg = fs.readFileSync(path.join(config.TEMPLATES_DIR, t.file), 'utf8');
   const fills = {};
   for (const ph of store.listPhotos(p.id)) if (ph.slot) fills[ph.slot] = `/api/o/${req.params.token}/photos/${ph.id}/square`;

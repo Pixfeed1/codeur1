@@ -21,10 +21,10 @@
     return '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' +
       '<div class="rc-logo">Ravive</div><div class="rc-logo-tl">Pour ne rien oublier de nous</div>' +
       '<div class="rc-orn"><i></i><span>♥</span><i class="r"></i></div>' +
-      '<h1 class="rc-h1">' + title + '</h1><div class="rc-sub">' + sub + '</div></div></div>';
+      '<h1 class="rc-h1" style="font-size:30px">' + title + '</h1><div class="rc-sub">' + sub + '</div></div></div>';
   }
-  if (D.notFound) { app.innerHTML = simple('Ce cadre n’est pas<br>reconnu.', 'Réessaie de l’approcher de ton téléphone, ou contacte la personne qui te l’a offert.'); return; }
-  if (D.notReady) { app.innerHTML = simple('Ce cadre n’est pas<br>encore prêt.', 'Les souvenirs sont en préparation. Reviens un peu plus tard.'); return; }
+  if (D.notFound) { app.innerHTML = simple('Ce cadre n’est pas reconnu.', 'Réessaie de l’approcher de ton téléphone, ou contacte la personne qui te l’a offert.'); return; }
+  if (D.notReady) { app.innerHTML = simple('Ce cadre n’est pas encore prêt.', 'Les souvenirs sont en préparation. Reviens un peu plus tard.'); return; }
 
   var people = D.people || [];
   people.forEach(function (p, i) { p.n = i; });
@@ -91,9 +91,9 @@
   function avatar(p) {
     return '<div class="mava" style="' + (p.selfie ? 'background-image:url(\'' + p.selfie + '\')' : 'background:' + grad(p.n)) + '">' + (p.selfie ? '' : esc(p.name[0])) + '</div>';
   }
-  function storyShell(p, m, bars, head, body) {
+  function storyShell(p, m, bars, head, body, top) {
     var bg = m.photo ? 'background-image:url(\'' + m.photo + '\')' : p.photo ? 'background-image:url(\'' + p.photo + '\')' : 'background:' + grad(p.n);
-    return '<div class="mstory"><div class="bg" style="' + bg + '"></div>' + (m.photo || p.photo ? '' : '<div class="mmono">' + esc(p.name[0]) + '</div>') + '<div class="mveil"></div>' +
+    return '<div class="mstory"><div class="bg" style="' + bg + '"></div>' + (m.photo || p.photo ? '' : '<div class="mmono">' + esc(p.name[0]) + '</div>') + '<div class="mveil' + (top ? ' top' : '') + '"></div>' +
       '<div class="mprog">' + bars + '</div>' +
       '<div class="mshead">' + avatar(p) + '<div class="mnm">' + esc(p.name) + '</div>' + head + '</div>' +
       body +
@@ -212,7 +212,7 @@
     if (m.kind === 'voice') body = '<div class="msbody">' + inner(p, m) + '</div>';
     else if (m.kind === 'photo') body = '<div class="msbody"><div class="mkick">' + esc(kickOf(m)) + '</div><div class="mphotocap">📷 La photo laissée par ' + esc(p.name) + '</div></div>';
     else body = '<div class="msbody top"><div class="mkick">' + esc(kickOf(m)) + '</div><div class="bigtext">“ ' + esc(m.text) + ' ”<div class="sig">— ' + esc(p.name) + '</div></div></div>';
-    app.innerHTML = storyShell(p, m, bars, '<button class="mx" id="mx">✕</button>', body);
+    app.innerHTML = storyShell(p, m, bars, '<button class="mx" id="mx">✕</button>', body, m.kind === 'text');
     document.getElementById('mx').onclick = function () { go('biblio'); };
     document.getElementById('tl').onclick = function () { if (S.pi > 0) { S.pi--; pcard(S.pi); } };
     document.getElementById('tr').onclick = function () { if (S.pi < arr.length - 1) { S.pi++; pcard(S.pi); } else go('biblio'); };

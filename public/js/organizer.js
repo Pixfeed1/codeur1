@@ -199,6 +199,7 @@
       var n = D.photos.length;
       var best = D.templates.slice().sort(function (a, b) { return Math.abs(a.slotCount - n) - Math.abs(b.slotCount - n); })[0];
       S.tpl = best ? best.id : null;
+      if (S.tpl) scheduleSave(); // affiche tout de suite l'aperçu du gabarit vide
     }
   }
   var saveTimer = null;

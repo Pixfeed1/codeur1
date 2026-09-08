@@ -521,6 +521,10 @@
         if (m.free && !S.free) S.free = Object.assign({}, rec, { done: true }); else S.answered.push(rec);
       });
       S.starId = r.star;
+      if (r.name) S.name = r.name;
+      if (r.relation) S.rel = r.relation;
+      if (r.photo) S.photo = { url: r.photo.url, photoId: r.photo.photoId };
+      if (r.selfie) S.selfie = { url: r.selfie, sent: true };
       S.sc = r.memories.length ? 'review' : 'photo';
       render();
     }).catch(function () { try { sessionStorage.removeItem(storeKey); } catch (e) { /* rien */ } reset(); render(); });

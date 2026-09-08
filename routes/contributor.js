@@ -249,9 +249,17 @@ router.delete('/api/p/:slug/contributions/:id/memories/:mid', loadProject, loadC
 
 router.get('/api/p/:slug/contributions/:id/memories', loadProject, loadContribution, (req, res) => {
   const c = req.contribution;
+  const t = h.bearer(req);
+  const photoUrl = (ph) => (ph ? `/api/p/${req.project.slug}/contributions/${c.id}/photos/${ph.id}?t=${t}` : null);
+  const main = store.getContributionPhoto(c.id, 'main');
+  const selfie = store.getContributionPhoto(c.id, 'selfie');
   res.json({
     star: c.star_memory_id,
-    memories: store.listMemories(c.id).map((m) => memoryView(m, req.project.slug, c.id, h.bearer(req))),
+    name: c.name,
+    relation: c.relation,
+    photo: main ? { photoId: main.id, url: photoUrl(main) } : null,
+    selfie: photoUrl(selfie),
+    memories: store.listMemories(c.id).map((m) => memoryView(m, req.project.slug, c.id, t)),
   });
 });
 

@@ -1,6 +1,8 @@
 'use strict';
 
-/* ravive — parcours destinataire : reveal façon stories, puis bibliothèque.
+/* ravive — parcours destinataire (maquette « destinataire v3 »).
+   Découverte : accueil → compteur → reveal (un souvenir par proche) → fin → « Leurs mots ».
+   Retour     : bon retour → reveal aléatoire (un souvenir par proche) → « Leurs mots ».
    Même expérience en mode aperçu (organisateur / admin), sans consommer le reveal. */
 
 (function () {
@@ -8,143 +10,215 @@
   var D = window.RAVIVE_STATE || {};
   var app = document.getElementById('app');
   var esc = R.esc;
-  var S = { sc: 'home', i: 0, audio: null, timer: null, revealDone: false };
-  var P = D.recipientName || '';
-  var pr = R.pron(D.recipientGender);
   var CATS = {};
   (D.categories || []).forEach(function (c) { CATS[c.key] = c; });
 
-  function centered(em, title, sub, buttons) {
-    return '<div class="view center fade"><div style="font-size:44px">' + em + '</div><h1 class="lede" style="font-size:24px;margin-top:12px">' + title + '</h1>' +
-      (sub ? '<div class="sub" style="max-width:285px;margin-top:12px">' + sub + '</div>' : '') + (buttons ? '<div class="stack" style="margin-top:26px;width:100%">' + buttons + '</div>' : '') + '</div>';
-  }
-  if (D.notFound) { app.innerHTML = centered('🤔', 'Ce cadre n’est pas reconnu.', 'Réessaie de l’approcher de ton téléphone, ou contacte la personne qui te l’a offert.'); return; }
-  if (D.notReady) { app.innerHTML = centered('⏳', 'Ce cadre n’est pas encore prêt.', 'Les souvenirs sont en préparation. Reviens un peu plus tard !'); return; }
+  var GRADS = [['#C9A98A', '#9C7A55'], ['#B9A48C', '#8A7256'], ['#CBB196', '#A07E5B'], ['#B79C86', '#877055'], ['#C4A87F', '#987a4c'], ['#BFAE93', '#8f7a5a'], ['#CDB08A', '#9d7c50'], ['#B49C82', '#82694c']];
+  function grad(n) { var g = GRADS[n % GRADS.length]; return 'linear-gradient(150deg,' + g[0] + ',' + g[1] + ')'; }
+  var PHOTOBG = 'linear-gradient(165deg,#5d3f52 0%,#9c5a51 42%,#cd7f4f 72%,#e6a25f 92%)';
 
-  var reveal = D.items.filter(function (it) { return it.inReveal; });
+  function simple(title, sub) {
+    return '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' +
+      '<div class="rc-logo">Ravive</div><div class="rc-logo-tl">Pour ne rien oublier de nous</div>' +
+      '<div class="rc-orn"><i></i><span>♥</span><i class="r"></i></div>' +
+      '<h1 class="rc-h1">' + title + '</h1><div class="rc-sub">' + sub + '</div></div></div>';
+  }
+  if (D.notFound) { app.innerHTML = simple('Ce cadre n’est pas<br>reconnu.', 'Réessaie de l’approcher de ton téléphone, ou contacte la personne qui te l’a offert.'); return; }
+  if (D.notReady) { app.innerHTML = simple('Ce cadre n’est pas<br>encore prêt.', 'Les souvenirs sont en préparation. Reviens un peu plus tard.'); return; }
+
+  var people = D.people || [];
+  people.forEach(function (p, i) { p.n = i; });
+
+  var S = { flow: D.firstAccess ? 'first' : 'rescan', sc: null, i: 0, list: [], person: null, pi: 0, audio: null, timer: null, raf: null };
+
+  function stopAll() {
+    if (S.audio) { S.audio.pause(); S.audio = null; }
+    if (S.timer) { clearTimeout(S.timer); S.timer = null; }
+    if (S.raf) { cancelAnimationFrame(S.raf); S.raf = null; }
+  }
   function render() { try { SC[S.sc](); } catch (e) { console.error(e); } window.scrollTo(0, 0); }
-  function go(x) { stopAudio(); S.sc = x; render(); }
-  function stopAudio() { if (S.audio) { S.audio.pause(); S.audio = null; } if (S.timer) { clearTimeout(S.timer); S.timer = null; } }
+  function go(x) { stopAll(); S.sc = x; render(); }
   var SC = {};
 
-  /* ----------------------------------------------------------- accueil */
-  SC.home = function () {
-    var first = D.firstAccess && !S.revealDone;
-    if (first) {
-      app.innerHTML = '<div class="view center fade" style="background:#241a12;color:#fff;min-height:100dvh">' +
-        (D.preview ? '<div class="chip" style="margin-bottom:18px">Mode aperçu · rien n’est consommé</div>' : '') +
-        '<div class="brand" style="color:#D8BE8C">Ravive</div>' +
-        '<h1 class="lede" style="margin-top:22px;color:#fff">' + esc(P) + ',<br>' + reveal.length + ' ' + (reveal.length > 1 ? 'proches ont' : 'proche a') + ' laissé<br>quelque chose pour toi.</h1>' +
-        '<div class="sub" style="color:rgba(255,255,255,.75);max-width:285px">' + (D.organizerName ? esc(D.organizerName) + ' a réuni tout le monde en secret. ' : '') + 'Installe-toi, monte le son. <span class="heart">♥</span></div>' +
-        '<div class="stack" style="max-width:260px;margin-top:28px;width:100%"><button class="btn gold" id="start">Découvrir <span class="arrow"></span></button></div>' +
-        (D.frameText ? '<div style="font-family:Caveat,cursive;font-size:24px;color:#D8BE8C;margin-top:30px">' + esc(D.frameText) + '</div>' : '') +
-        '</div>';
-      document.getElementById('start').onclick = function () { S.i = 0; go('story'); };
-      return;
-    }
-    app.innerHTML = '<div class="view center fade">' +
-      (D.preview ? '<div class="chip" style="margin-bottom:18px">Mode aperçu</div>' : '') +
-      '<div class="brand">Ravive</div>' +
-      '<h1 class="lede" style="margin-top:22px">Tes souvenirs<br>sont là, ' + esc(P) + '.</h1>' +
-      '<div class="sub" style="max-width:285px">' + D.people.length + ' proches, ' + D.items.length + ' souvenirs. Toujours à portée de main, aujourd’hui comme dans dix ans.</div>' +
-      '<div class="stack" style="max-width:280px;margin-top:28px;width:100%"><button class="btn gold" id="again">▶  Revivre le reveal</button><button class="btn line" id="lib">Ouvrir la bibliothèque</button></div>' +
-      '<div class="foot">Un cadre <a href="/">Ravive</a></div></div>';
-    document.getElementById('again').onclick = function () { S.i = 0; go('story'); };
-    document.getElementById('lib').onclick = function () { go('library'); };
+  function previewChip() {
+    if (!D.preview) return '';
+    return '<div class="rc-chip">Mode aperçu · <a href="#" id="pvflow">' + (S.flow === 'first' ? 'voir l’écran de retour' : 'voir la découverte') + '</a></div>';
+  }
+  function bindPreview() {
+    var a = document.getElementById('pvflow');
+    if (a) a.onclick = function (e) { e.preventDefault(); S.flow = S.flow === 'first' ? 'rescan' : 'first'; go(S.flow === 'first' ? 'accueil' : 'retour'); };
+  }
+
+  /* ------------------------------------------------------- découverte */
+  SC.accueil = function () {
+    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' + previewChip() +
+      '<div class="rc-logo">Ravive</div><div class="rc-logo-tl">Pour ne rien oublier de nous</div>' +
+      '<div class="rc-orn" style="margin-top:24px"><i></i><span>Rien que pour toi</span><i class="r"></i></div>' +
+      '<h1 class="rc-h1 big">Ils avaient<br>quelque chose<br>à te dire.</h1>' +
+      '<div class="rc-sub">Ceux qui t’aiment ont laissé un mot, une voix, un souvenir.</div>' +
+      '<div class="rc-stack"><button class="btn gold" id="go">Découvrir <span class="arrow"></span></button></div>' +
+      '</div></div>';
+    document.getElementById('go').onclick = function () { go('intro'); };
+    bindPreview();
   };
 
-  /* ------------------------------------------------------------- story */
-  SC.story = function () { showItem(S.i); };
-  function showItem(i) {
-    stopAudio();
-    if (!reveal.length) { go('library'); return; }
-    var it = reveal[i];
-    var bars = reveal.map(function (_, k) { return '<div class="p"><i style="width:' + (k <= i ? '100%' : '0') + '"></i></div>'; }).join('');
-    var kick = it.free ? 'Un mot pour toi' : (it.question || (CATS[it.category] ? CATS[it.category].title : 'Un souvenir'));
-    var inner;
-    if (it.kind === 'voice') inner = '<div class="mkick">' + esc(kick) + '</div><div class="mvoice" id="mv"><button class="pl" id="mplay"><svg width="15" height="17" viewBox="0 0 15 17" fill="currentColor"><path d="M2 2 L13 8.5 L2 15 Z"/></svg></button><div class="w">' + R.bars(20) + '</div><div class="d" id="md">' + R.fmt(it.duration) + '</div></div>';
-    else if (it.kind === 'photo') inner = '<div class="mkick">' + esc(kick) + '</div><div class="mphotocap">📸 Une photo de ' + esc(it.name) + '</div>';
-    else inner = '<div class="mkick">' + esc(kick) + '</div><div class="mnote' + ((it.text || '').length > 220 ? ' long' : '') + '">“ ' + esc(it.text) + ' ”</div>';
-    var bg = it.background ? 'background-image:url(\'' + it.background + '\')' : '';
-    app.innerHTML = '<div class="mstory"><div class="bg' + (bg ? '' : ' grad') + '" style="' + bg + '"></div><div class="mveil"></div>' +
+  SC.intro = function () {
+    var n = people.length;
+    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' +
+      '<div class="rc-count">' + n + '</div>' +
+      '<h1 class="rc-h1" style="margin-top:14px;font-size:26px">' + (n > 1 ? 'personnes ont' : 'personne a') + '<br>pensé à toi <span class="heart">♥</span></h1>' +
+      '<div class="rc-sub">Prends une minute, rien que pour toi.</div>' +
+      '<div class="rc-stack"><button class="btn" id="go">Découvrir leurs mots <span class="arrow"></span></button></div>' +
+      '</div></div>';
+    document.getElementById('go').onclick = startReveal;
+  };
+
+  /* ------------------------------------------------------------ reveal */
+  function pick(p) {
+    if (!p.memories.length) return null;
+    if (S.flow === 'rescan') return p.memories[Math.floor(Math.random() * p.memories.length)];
+    return p.memories.filter(function (m) { return m.inReveal; })[0] || p.memories[0];
+  }
+  function startReveal() {
+    S.list = people.map(function (p) { return { p: p, m: pick(p) }; }).filter(function (x) { return x.m; });
+    if (!S.list.length) { go('biblio'); return; }
+    S.i = 0;
+    go('reveal');
+  }
+  SC.reveal = function () { card(S.i); };
+
+  function kickOf(m) { return m.free ? 'Un mot pour toi' : (m.question || (CATS[m.category] ? CATS[m.category].title : 'Un souvenir')); }
+  function avatar(p) {
+    return '<div class="mava" style="' + (p.selfie ? 'background-image:url(\'' + p.selfie + '\')' : 'background:' + grad(p.n)) + '">' + (p.selfie ? '' : esc(p.name[0])) + '</div>';
+  }
+  function storyShell(p, m, bars, head, body) {
+    var bg = m.photo ? 'background-image:url(\'' + m.photo + '\')' : p.photo ? 'background-image:url(\'' + p.photo + '\')' : 'background:' + grad(p.n);
+    return '<div class="mstory"><div class="bg" style="' + bg + '"></div>' + (m.photo || p.photo ? '' : '<div class="mmono">' + esc(p.name[0]) + '</div>') + '<div class="mveil"></div>' +
       '<div class="mprog">' + bars + '</div>' +
-      '<div class="mshead"><div class="mava" style="' + (it.selfie ? 'background-image:url(\'' + it.selfie + '\')' : '') + '">' + (it.selfie ? '' : esc(it.name[0])) + '</div><div><div class="mnm">' + esc(it.name) + '</div>' + (it.relation ? '<div class="mrel">' + esc(relLabel(it.relation)) + '</div>' : '') + '</div><button class="mx" id="mx">✕</button></div>' +
-      '<div class="msbody">' + inner + '</div>' +
-      '<div class="mtaps"><div class="l" id="ml"></div><div class="r" id="mr"></div></div>' +
-      '<div class="mtaphint">' + (i < reveal.length - 1 ? 'Touche à droite pour le suivant' : 'Touche à droite pour terminer') + '</div></div>';
-    document.getElementById('mx').onclick = finishReveal;
-    document.getElementById('ml').onclick = function () { if (S.i > 0) { S.i--; showItem(S.i); } };
-    document.getElementById('mr').onclick = next;
-    var mp = document.getElementById('mplay');
-    if (mp) {
-      var mv = document.getElementById('mv');
-      var play = function () {
-        if (S.audio && !S.audio.paused) { S.audio.pause(); mv.classList.remove('on'); return; }
-        if (!S.audio) {
-          S.audio = new Audio(it.audio);
-          S.audio.onended = function () { mv.classList.remove('on'); S.timer = setTimeout(next, 1500); };
-          S.audio.ontimeupdate = function () { var d = document.getElementById('md'); if (d && S.audio) d.textContent = R.fmt(S.audio.currentTime) + ' / ' + R.fmt(it.duration); };
-        }
-        S.audio.play().then(function () { mv.classList.add('on'); }).catch(function () {});
-      };
-      mp.onclick = play;
-      // lecture automatique quand c'est possible (l'utilisateur vient de toucher l'écran)
-      play();
+      '<div class="mshead">' + avatar(p) + '<div class="mnm">' + esc(p.name) + '</div>' + head + '</div>' +
+      body +
+      '<div class="mtaps"><div class="l" id="tl"></div><div class="r" id="tr"></div></div></div>';
+  }
+  function inner(p, m) {
+    var k = '<div class="mkick">' + esc(kickOf(m)) + '</div>';
+    if (m.kind === 'voice') return k + '<div class="mvoice" id="mv"><button class="pl" id="mplay"><svg width="15" height="17" viewBox="0 0 15 17" fill="currentColor"><path d="M2 2 L13 8.5 L2 15 Z"/></svg></button><div class="w">' + R.bars(22) + '</div><div class="d" id="md">' + R.fmt(m.duration) + '</div></div>';
+    if (m.kind === 'photo') return k + '<div class="mphotocap">📷 Une photo rien que pour toi</div>';
+    var long = (m.text || '').length > 260;
+    return k + '<div class="mnote' + (long ? ' long' : '') + '"><span class="quote">“</span>' + esc(m.text) + '<div class="sig">— ' + esc(p.name) + '</div></div>';
+  }
+
+  // Lance l'audio d'un souvenir vocal ; `done` est appelé à la fin de la lecture.
+  function playVoice(m, done) {
+    var mv = document.getElementById('mv'), mp = document.getElementById('mplay'), fill = document.querySelector('.mprog i[data-cur]');
+    if (!mp) return;
+    var start = function () {
+      if (S.audio && !S.audio.paused) { S.audio.pause(); mv.classList.remove('on'); return; }
+      if (!S.audio) {
+        S.audio = new Audio(m.audio);
+        S.audio.onended = function () { mv.classList.remove('on'); if (fill) fill.style.width = '100%'; if (done) S.timer = setTimeout(done, 900); };
+        S.audio.ontimeupdate = function () {
+          if (!S.audio) return;
+          var d = document.getElementById('md'); if (d) d.textContent = R.fmt(S.audio.currentTime) + ' / ' + R.fmt(m.duration || S.audio.duration || 0);
+          if (fill && (m.duration || S.audio.duration)) fill.style.width = Math.min(100, S.audio.currentTime / (m.duration || S.audio.duration) * 100) + '%';
+        };
+      }
+      S.audio.play().then(function () { mv.classList.add('on'); }).catch(function () { /* lecture bloquée : l'utilisateur touchera le bouton */ });
+    };
+    mp.onclick = function (e) { e.stopPropagation(); start(); };
+    start();
+  }
+  // Barre de progression animée puis passage automatique (texte, photo).
+  function autoAdvance(ms, done) {
+    var fill = document.querySelector('.mprog i[data-cur]'), t0 = performance.now();
+    function frame(now) {
+      var p = Math.min(1, (now - t0) / ms);
+      if (fill) fill.style.width = (p * 100) + '%';
+      if (p >= 1) { done(); return; }
+      S.raf = requestAnimationFrame(frame);
     }
+    S.raf = requestAnimationFrame(frame);
   }
-  function next() {
-    if (S.i < reveal.length - 1) { S.i++; showItem(S.i); } else finishReveal();
+  function durationFor(m) {
+    if (m.kind === 'photo') return 5000;
+    return Math.min(14000, Math.max(4500, 3000 + (m.text || '').length * 45));
   }
-  function finishReveal() {
-    stopAudio();
-    S.revealDone = true;
+
+  function card(i) {
+    stopAll();
+    var it = S.list[i], p = it.p, m = it.m;
+    var bars = S.list.map(function (_, k) { return '<div class="p"><i' + (k === i ? ' data-cur' : '') + ' style="width:' + (k < i ? '100%' : '0') + '"></i></div>'; }).join('');
+    var head = S.flow === 'rescan' ? '<button class="skipst" id="mx">Passer ›</button>' : '<button class="mx" id="mx">✕</button>';
+    app.innerHTML = storyShell(p, m, bars, head, '<div class="msbody fade">' + inner(p, m) + '</div>');
+    document.getElementById('mx').onclick = function () { S.flow === 'rescan' ? go('biblio') : finish(); };
+    document.getElementById('tl').onclick = function () { if (S.i > 0) { S.i--; card(S.i); } else card(0); };
+    document.getElementById('tr').onclick = next;
+    if (m.kind === 'voice') playVoice(m, next); else autoAdvance(durationFor(m), next);
+  }
+  function next() { if (S.i < S.list.length - 1) { S.i++; card(S.i); } else if (S.flow === 'rescan') go('biblio'); else finish(); }
+  function finish() {
+    stopAll();
     if (D.firstAccess && !D.preview) { D.firstAccess = false; fetch(D.api + '/reveal-done', { method: 'POST' }).catch(function () {}); }
-    go('after');
+    go('fin');
   }
-  SC.after = function () {
-    app.innerHTML = centered('🤎', 'Et ce n’est pas tout.', (D.items.length - reveal.length > 0 ? 'Tes proches ont laissé ' + (D.items.length - reveal.length) + ' autres souvenirs. ' : '') + 'Tout reste ici, pour toujours. Reviens quand tu veux en approchant ton téléphone du cadre.',
-      '<button class="btn gold" id="lib">Voir tous les souvenirs</button><button class="btn line" id="again">Revoir le reveal</button>');
-    document.getElementById('lib').onclick = function () { go('library'); };
-    document.getElementById('again').onclick = function () { S.i = 0; go('story'); };
+
+  SC.fin = function () {
+    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' +
+      '<div class="rc-orn"><i></i><span>♥</span><i class="r"></i></div>' +
+      '<h1 class="rc-h1">Voilà ce que tu<br>représentes<br>pour <em>eux.</em></h1>' +
+      '<div class="rc-sub">Et ce n’est que le début,<br>il te reste encore plein<br>de souvenirs à découvrir.</div>' +
+      '<div class="rc-stack"><button class="btn gold" id="lib">Découvrir « Leurs mots »</button><button class="btn line" id="again">Revoir</button></div>' +
+      '</div></div>';
+    document.getElementById('lib').onclick = function () { go('biblio'); };
+    document.getElementById('again').onclick = startReveal;
   };
 
-  /* ------------------------------------------------------- bibliothèque */
-  function relLabel(r) { return { ami: 'ami·e', famille: 'famille', amour: 'en couple', collegue: 'collègue', autre: '' }[r] || ''; }
-  SC.library = function () {
-    var people = D.people.map(function (p) {
-      var mems = p.memories.map(function (m) {
-        var q = m.free ? 'Un mot pour toi' : (m.question || '');
-        var body = m.kind === 'text' ? '<div class="txt">' + esc(m.text) + '</div>'
-          : m.kind === 'voice' ? '<div class="player"><button class="pbtn" data-audio="' + esc(m.audio) + '">▶</button><div class="wave">' + R.bars(16) + '</div><div class="pt">' + R.fmt(m.duration) + '</div></div>'
-          : '<img src="' + esc(m.photo) + '" alt="" loading="lazy">';
-        return '<div class="lib-mem"><div class="q">' + esc(q) + (m.inReveal ? ' <span class="star">★</span>' : '') + '</div>' + body + '</div>';
-      }).join('');
-      return '<div class="lib-person" data-p="' + p.id + '"><div class="lib-head"><div class="av" style="' + (p.selfie ? 'background-image:url(\'' + p.selfie + '\')' : p.photo ? 'background-image:url(\'' + p.photo + '\')' : '') + '">' + (p.selfie || p.photo ? '' : esc(p.name[0])) + '</div>' +
-        '<div><div class="nm">' + esc(p.name) + '</div><div class="cnt">' + (relLabel(p.relation) ? relLabel(p.relation) + ' · ' : '') + p.memories.length + ' souvenir' + (p.memories.length > 1 ? 's' : '') + '</div></div><div class="chev">›</div></div>' +
-        '<div class="lib-mems">' + mems + '</div></div>';
+  /* ------------------------------------------------------------ retour */
+  SC.retour = function () {
+    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' + previewChip() +
+      '<div class="rc-logo" style="font-size:38px">Ravive</div><div class="rc-logo-tl">Pour ne rien oublier de nous</div>' +
+      '<div class="rc-orn"><i></i><span>♥</span><i class="r"></i></div>' +
+      '<h1 class="rc-h1 big">Bon retour.</h1>' +
+      '<div class="rc-sub">Tes proches sont toujours là, quand tu en as besoin.</div>' +
+      '<div class="rc-stack"><button class="btn gold" id="again">Revoir un souvenir de chacun</button><button class="btn line" id="lib">Leurs mots</button></div>' +
+      '</div></div>';
+    document.getElementById('again').onclick = startReveal;
+    document.getElementById('lib').onclick = function () { go('biblio'); };
+    bindPreview();
+  };
+
+  /* ------------------------------------------------------- leurs mots */
+  SC.biblio = function () {
+    var cells = people.map(function (p) {
+      var cnt = p.memories.length;
+      return '<div class="rc-person" data-n="' + p.n + '"><div class="rc-ava" style="' + (p.selfie ? 'background-image:url(\'' + p.selfie + '\')' : 'background:' + grad(p.n)) + '">' +
+        (p.selfie ? '' : '<span class="pinit">' + esc(p.name[0]) + '</span>') + (cnt > 1 ? '<div class="more">' + cnt + '</div>' : '') + '</div>' +
+        '<div class="pn">' + esc(p.name) + '</div></div>';
     }).join('');
-    app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">Ta bibliothèque</span><h1>Les souvenirs<br>de tes proches</h1></div>' +
-      '<div class="body"><div class="sub" style="margin:-2px 0 16px">' + D.people.length + ' proches · ' + D.items.length + ' souvenirs. Touche un prénom pour ouvrir.</div>' + people +
-      '<div class="foot">★ = montré au reveal · Un cadre <a href="/">Ravive</a></div></div></div>';
-    document.getElementById('back').onclick = function () { go('home'); };
-    app.querySelectorAll('.lib-head').forEach(function (h) { h.onclick = function () { h.parentNode.classList.toggle('open'); }; });
-    app.querySelectorAll('[data-audio]').forEach(function (b) {
-      b.onclick = function () {
-        var wave = b.parentNode.querySelector('.wave'), pt = b.parentNode.querySelector('.pt');
-        if (S.audio && S.audio.dataset && S.audio.dataset.src === b.dataset.audio) {
-          if (S.audio.paused) { S.audio.play(); b.textContent = '❚❚'; wave.classList.add('on'); } else { S.audio.pause(); b.textContent = '▶'; wave.classList.remove('on'); }
-          return;
-        }
-        stopAudio();
-        app.querySelectorAll('[data-audio]').forEach(function (x) { x.textContent = '▶'; x.parentNode.querySelector('.wave').classList.remove('on'); });
-        S.audio = new Audio(b.dataset.audio);
-        S.audio.dataset = { src: b.dataset.audio };
-        S.audio.onended = function () { b.textContent = '▶'; wave.classList.remove('on'); };
-        S.audio.ontimeupdate = function () { if (S.audio) pt.textContent = R.fmt(S.audio.currentTime) + ' / ' + R.fmt(S.audio.duration || 0); };
-        S.audio.play().then(function () { b.textContent = '❚❚'; wave.classList.add('on'); }).catch(function () {});
-      };
-    });
+    app.innerHTML = '<div class="rc-lib fade"><button class="rc-backb" id="back">‹</button>' +
+      '<div class="rc-libhead"><div class="t">Leurs mots <span class="heart">♥</span></div><div class="s">Retrouve ici tout ce qu’ils ont préparé pour toi.<br>Certains avaient encore beaucoup à te raconter…</div></div>' +
+      '<div class="rc-grid">' + cells + '</div>' +
+      '<div class="foot">Un cadre <a href="/">Ravive</a></div></div>';
+    document.getElementById('back').onclick = function () { go(S.flow === 'rescan' ? 'retour' : 'fin'); };
+    app.querySelectorAll('.rc-person').forEach(function (el) { el.onclick = function () { S.person = people[Number(el.dataset.n)]; S.pi = 0; go('profil'); }; });
   };
 
-  render();
+  /* ------------------------------------------------------------ profil */
+  SC.profil = function () { pcard(S.pi); };
+  function pcard(pi) {
+    stopAll();
+    var p = S.person, arr = p.memories, m = arr[pi];
+    var bars = arr.map(function (_, k) { return '<div class="p"><i' + (k === pi ? ' data-cur' : '') + ' style="width:' + (k < pi ? '100%' : '0') + '"></i></div>'; }).join('');
+    var body;
+    if (m.kind === 'voice') body = '<div class="msbody">' + inner(p, m) + '</div>';
+    else if (m.kind === 'photo') body = '<div class="msbody"><div class="mkick">' + esc(kickOf(m)) + '</div><div class="mphotocap">📷 La photo laissée par ' + esc(p.name) + '</div></div>';
+    else body = '<div class="msbody top"><div class="mkick">' + esc(kickOf(m)) + '</div><div class="bigtext">“ ' + esc(m.text) + ' ”<div class="sig">— ' + esc(p.name) + '</div></div></div>';
+    app.innerHTML = storyShell(p, m, bars, '<button class="mx" id="mx">✕</button>', body);
+    document.getElementById('mx').onclick = function () { go('biblio'); };
+    document.getElementById('tl').onclick = function () { if (S.pi > 0) { S.pi--; pcard(S.pi); } };
+    document.getElementById('tr').onclick = function () { if (S.pi < arr.length - 1) { S.pi++; pcard(S.pi); } else go('biblio'); };
+    if (m.kind === 'voice') playVoice(m, null);
+    else { var f = document.querySelector('.mprog i[data-cur]'); if (f) f.style.width = '100%'; }
+  }
+
+  go(S.flow === 'first' ? 'accueil' : 'retour');
 })();

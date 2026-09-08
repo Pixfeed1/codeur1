@@ -35,7 +35,7 @@ router.post('/api/shopify/webhook', express.raw({ type: () => true, limit: '2mb'
 
   // Shopify réessaie tant qu'il n'a pas reçu 200 : on répond vite, on traite ensuite,
   // et on ignore les livraisons en double grâce à l'identifiant du webhook.
-  if (eventId && !store.recordShopifyEvent(eventId, topic, order && order.id)) {
+  if (eventId && !store.recordShopifyEvent(eventId, topic, order && order.id != null ? String(order.id) : null)) {
     return res.json({ ok: true, duplicate: true });
   }
   res.json({ ok: true });

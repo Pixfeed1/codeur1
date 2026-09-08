@@ -9,42 +9,17 @@
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Fraunces:ital,wght@0,600;1,600&family=Outfit:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/css/style.css">
-  <style>
-    .wrap { max-width: 720px; }
-    .admin-block { width: 100%; text-align: left; }
-    .row { display: flex; gap: 12px; align-items: center; margin-top: 16px; flex-wrap: wrap; }
-    .row input[type=number] {
-      width: 110px; border: 1.5px solid rgba(51,41,31,0.14); border-radius: 14px;
-      background: #fffdf6; padding: 12px 14px; font-size: 1.05rem; font-family: inherit;
-    }
-    .row .btn { width: auto; margin-top: 0; padding: 12px 24px; font-size: 0.98rem; }
-    .stats { display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap; }
-    .stat { background: #fffdf6; border: 1px solid rgba(51,41,31,0.08); border-radius: 16px; padding: 12px 18px; }
-    .stat b { font-size: 1.3rem; display: block; }
-    .stat span { color: var(--ink-soft); font-size: 0.82rem; }
-    .tablewrap { width: 100%; overflow-x: auto; margin-top: 18px; }
-    table { width: 100%; border-collapse: collapse; font-size: 0.88rem; }
-    th, td { text-align: left; padding: 9px 10px; border-bottom: 1px solid rgba(51,41,31,0.08); white-space: nowrap; }
-    th { color: var(--ink-soft); font-weight: 600; font-size: 0.78rem; text-transform: uppercase; letter-spacing: 0.06em; }
-    .tag { border-radius: 999px; padding: 3px 10px; font-size: 0.78rem; font-weight: 600; }
-    .tag.pending { background: #f6ecc9; color: #8a6f1f; }
-    .tag.recorded { background: #e6ebdf; color: #5f7150; }
-    .batch { width: 100%; background: #fffdf6; border: 1px solid rgba(51,41,31,0.08); border-radius: 16px; padding: 16px 18px; margin-top: 18px; }
-    .batch code { font-size: 0.85rem; }
-    .note { color: var(--ink-soft); font-size: 0.85rem; margin-top: 10px; }
-    #loginError { margin-top: 14px; }
-    .mono { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.82rem; }
-  </style>
+  <link rel="stylesheet" href="/css/admin.css">
 </head>
 <body>
-  <div class="wrap">
+  <div class="wrap admin">
     <header class="topbar"><a class="brand" href="/">ravive</a></header>
 
     <!-- Connexion -->
-    <section class="screen active" id="loginScreen">
+    <section class="screen active" id="loginScreen" style="max-width:430px;margin:0 auto;align-items:center;text-align:center;">
       <p class="kicker">Espace privé</p>
       <h1>Administration</h1>
-      <p class="lead">Réservé à la gestion des cartes.</p>
+      <p class="lead">Projets, cadres, gabarits et cartes.</p>
       <form class="field" id="loginForm">
         <label for="user">Identifiant</label>
         <input id="user" type="text" style="letter-spacing:normal; text-transform:none; text-align:left;" autocomplete="username" required>
@@ -55,33 +30,196 @@
       </form>
     </section>
 
-    <!-- Tableau de bord -->
+    <!-- Administration -->
     <section class="screen" id="dashScreen">
-      <div class="admin-block">
-        <h1>Gestion des cartes</h1>
+      <nav class="nav" id="nav">
+        <button data-tab="overview">Vue d'ensemble</button>
+        <button data-tab="projects">Projets</button>
+        <button data-tab="frames">Cadres NFC</button>
+        <button data-tab="templates">Gabarits</button>
+        <button data-tab="questions">Questions</button>
+        <button data-tab="formulas">Formules</button>
+        <button data-tab="settings">Réglages</button>
+        <button data-tab="cards">Cartes</button>
+        <span class="spacer"></span>
+        <button class="logout" id="logoutBtn">Déconnexion</button>
+      </nav>
 
+      <!-- Vue d'ensemble -->
+      <div class="panel" id="tab-overview">
+        <h1>Vue d'ensemble</h1>
+        <div class="stats" id="overviewStats"></div>
+        <h2>État du système</h2>
+        <div class="stats" id="systemStats"></div>
+        <p class="note">La configuration technique (emails, Shopify, ffmpeg) se règle dans le fichier <code>.env</code> du serveur. Les réglages métier sont dans l'onglet Réglages.</p>
+      </div>
+
+      <!-- Projets -->
+      <div class="panel" id="tab-projects">
+        <div id="projectsList">
+          <h1>Projets</h1>
+          <div class="toolbar">
+            <input type="search" id="projectSearch" placeholder="Prénom, email, code, commande…">
+            <select id="projectStatus">
+              <option value="">Tous les statuts</option>
+              <option value="preparing">En préparation</option>
+              <option value="collecting">Collecte en cours</option>
+              <option value="sealed">Scellé</option>
+              <option value="production">En fabrication</option>
+              <option value="shipped">Expédié</option>
+              <option value="done">Terminé</option>
+            </select>
+            <button class="btn inline ghost" id="newProjectBtn">+ Projet manuel</button>
+          </div>
+          <div class="tablewrap">
+            <table>
+              <thead><tr><th>Destinataire</th><th>Organisateur</th><th>Formule</th><th>Statut</th><th>Proches</th><th>Photos</th><th>Gabarit</th><th>Cadre</th><th>Commande</th><th>Créé le</th></tr></thead>
+              <tbody id="projectsBody"></tbody>
+            </table>
+          </div>
+          <div class="batch hidden" id="newProjectForm">
+            <h3>Créer un projet manuellement</h3>
+            <p class="note">Pour une commande hors Shopify, un test ou un SAV. L'organisateur reçoit son lien par email (ou copiez-le ci-dessous).</p>
+            <div class="form">
+              <label>Email organisateur<input type="email" id="npEmail" required></label>
+              <label>Prénom organisateur<input type="text" id="npOrganizer"></label>
+              <label>Prénom destinataire<input type="text" id="npRecipient"></label>
+              <label>Formule<select id="npFormula"></select></label>
+              <label>Capacité (proches)<input type="number" id="npCapacity" min="1" max="1000" placeholder="selon formule"></label>
+              <label>N° de commande<input type="text" id="npOrder"></label>
+              <label class="check"><input type="checkbox" id="npSend" checked> Envoyer l'email d'accès</label>
+            </div>
+            <div class="actions">
+              <button class="btn inline" id="npCreate">Créer le projet</button>
+              <button class="btn inline ghost" id="npCancel">Annuler</button>
+            </div>
+            <div class="linkbox hidden" id="npResult"></div>
+          </div>
+        </div>
+
+        <div id="projectDetail" class="hidden"></div>
+      </div>
+
+      <!-- Cadres NFC -->
+      <div class="panel" id="tab-frames">
+        <h1>Cadres NFC</h1>
+        <p class="note">Chaque cadre porte une puce NFC qui encode une URL unique. Générez un lot avant fabrication, transmettez le CSV à l'encodeur, puis associez chaque cadre à son projet depuis la fiche du projet (collez l'URL du cadre).</p>
+        <div class="toolbar">
+          <input type="number" id="frameCount" min="1" max="1000" value="20">
+          <input type="text" id="frameLabel" placeholder="Repère du lot (facultatif)">
+          <button class="btn inline" id="frameGenerate">Générer les URL</button>
+          <button class="btn inline ghost hidden" id="frameCsv">Télécharger le CSV du lot</button>
+        </div>
+        <div class="toolbar">
+          <label class="small muted"><input type="checkbox" id="frameUnlinked"> Seulement les cadres non associés</label>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>URL du cadre</th><th>Lot</th><th>Projet</th><th>Créé le</th><th>Associé le</th></tr></thead>
+            <tbody id="framesBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Gabarits -->
+      <div class="panel" id="tab-templates">
+        <h1>Gabarits de cadre</h1>
+        <p class="note">Fichiers SVG en millimètres (cadre 18×24 cm : viewBox 0 0 180 240). Un emplacement photo est un rectangle ou un tracé avec un id <code>photo_01</code>, <code>photo_02</code>… (ou une classe <code>slot</code>). La zone du petit mot est un rectangle <code>id="text_zone"</code>. Les emplacements non carrés rognent légèrement la photo carrée à l'impression.</p>
+        <div class="toolbar">
+          <input type="file" id="templateFile" accept=".svg,image/svg+xml" multiple>
+          <button class="btn inline" id="templateUpload">Importer</button>
+        </div>
+        <p class="error" id="templateError"></p>
+        <div class="grid" id="templatesGrid"></div>
+      </div>
+
+      <!-- Questions -->
+      <div class="panel" id="tab-questions">
+        <h1>Bibliothèque de questions</h1>
+        <p class="note">Une question est proposée à chaque contributeur (la moins utilisée dans le projet). <code>{prenom}</code> est remplacé par le prénom du destinataire.</p>
+        <div class="toolbar">
+          <input type="text" id="questionNew" placeholder="Nouvelle question…" style="flex:1;min-width:260px">
+          <button class="btn inline" id="questionAdd">Ajouter</button>
+        </div>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Question</th><th>Ordre</th><th>Active</th><th></th></tr></thead>
+            <tbody id="questionsBody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- Formules -->
+      <div class="panel" id="tab-formulas">
+        <h1>Formules</h1>
+        <p class="note">Les prix se gèrent dans Shopify. Ici, chaque formule est reliée à une variante Shopify (id de variante ou SKU) et définit le nombre de proches. Le prix affiché n'est qu'indicatif.</p>
+        <div class="tablewrap">
+          <table>
+            <thead><tr><th>Nom</th><th>Proches max.</th><th>Prix indicatif (€)</th><th>Id variante Shopify</th><th>SKU</th><th>Ordre</th><th>Active</th><th></th></tr></thead>
+            <tbody id="formulasBody"></tbody>
+          </table>
+        </div>
+        <div class="actions"><button class="btn inline ghost" id="formulaAdd">+ Ajouter une formule</button></div>
+      </div>
+
+      <!-- Réglages -->
+      <div class="panel" id="tab-settings">
+        <h1>Réglages</h1>
+        <div class="form" id="settingsForm">
+          <label>Durée max. d'un vocal (s)<input type="number" data-key="max_audio_s" min="10" max="600"></label>
+          <label>Longueur max. d'un texte (caractères)<input type="number" data-key="max_text_chars" min="50" max="10000"></label>
+          <label>Seuil de relance de capacité (%)<input type="number" data-key="capacity_alert_pct" min="10" max="100"></label>
+          <label>Prix d'une place supplémentaire (centimes)<input type="number" data-key="extra_seat_price_cents" min="0"></label>
+          <label>Id variante Shopify « places supplémentaires »<input type="text" data-key="extra_seat_shopify_variant_id"></label>
+          <label>SKU « places supplémentaires »<input type="text" data-key="extra_seat_shopify_sku"></label>
+          <label>Rappel avant la date de l'événement (jours)<input type="number" data-key="reminder_days_before" min="0" max="60"></label>
+          <label>Nom de marque (emails)<input type="text" data-key="brand_name"></label>
+          <label>Email de contact<input type="email" data-key="contact_email"></label>
+          <label>URL de la boutique (https://…)<input type="url" data-key="shop_url"></label>
+        </div>
+        <div class="actions"><button class="btn inline" id="settingsSave">Enregistrer</button></div>
+
+        <h2>Visuels des parcours</h2>
+        <p class="note">Images d'illustration remplaçables sans développement. Formats JPEG ou PNG, réduits automatiquement à 1600 px.</p>
+        <div class="visuals" id="visualsGrid"></div>
+
+        <h2>Configuration serveur</h2>
+        <div id="envInfo" class="note"></div>
+
+        <h2>Outils</h2>
+        <div class="toolbar">
+          <input type="email" id="testEmailTo" placeholder="adresse@exemple.fr">
+          <button class="btn inline ghost" id="testEmailBtn">Envoyer un email de test</button>
+          <button class="btn inline ghost" id="jobsRun">Lancer les tâches planifiées</button>
+        </div>
+        <h3>Rejouer une commande Shopify</h3>
+        <p class="note">Collez le JSON d'une commande (Shopify &gt; Commandes &gt; … &gt; Exporter, ou le corps d'un webhook) pour créer le projet manuellement.</p>
+        <textarea id="replayJson" class="form" style="width:100%;min-height:90px" placeholder='{"id": 123, "email": "…", "line_items": [...]}'></textarea>
+        <div class="actions"><button class="btn inline ghost" id="replayBtn">Rejouer</button></div>
+        <pre class="log hidden" id="replayResult"></pre>
+        <h3>Derniers webhooks reçus</h3>
+        <div class="tablewrap"><table><thead><tr><th>Reçu le</th><th>Événement</th><th>Commande</th><th>Résultat</th></tr></thead><tbody id="eventsBody"></tbody></table></div>
+      </div>
+
+      <!-- Cartes (produit historique) -->
+      <div class="panel" id="tab-cards">
+        <h1>Cartes NFC vocales</h1>
         <div class="stats">
           <div class="stat"><b id="statTotal">–</b><span>cartes créées</span></div>
           <div class="stat"><b id="statPending">–</b><span>en attente d'activation</span></div>
           <div class="stat"><b id="statRecorded">–</b><span>messages enregistrés</span></div>
         </div>
-
-        <h2 style="font-family:'Fraunces',Georgia,serif; margin-top:28px;">Générer un lot</h2>
-        <div class="row">
+        <h2>Générer un lot</h2>
+        <div class="toolbar">
           <input type="number" id="batchCount" min="1" max="1000" value="50">
-          <button class="btn" id="generateBtn">Générer les cartes</button>
+          <button class="btn inline" id="generateBtn">Générer les cartes</button>
         </div>
-        <div class="batch" id="batchResult" style="display:none">
+        <div class="batch hidden" id="batchResult">
           <b>Lot généré ✔</b>
-          <p class="note">Les codes ci-dessous ne sont affichés qu'<b>une seule fois</b> (ils ne sont pas
-          stockés en clair). Télécharge le fichier maintenant et transmets-le de façon sécurisée
-          à l'encodeur NFC / l'imprimeur, puis supprime-le.</p>
-          <div class="row">
-            <button class="btn" id="downloadCsv">Télécharger le CSV</button>
-          </div>
+          <p class="note">Les codes ne sont affichés qu'<b>une seule fois</b> (ils ne sont pas stockés en clair). Téléchargez le fichier maintenant et transmettez-le de façon sécurisée à l'encodeur NFC / l'imprimeur, puis supprimez-le.</p>
+          <div class="actions"><button class="btn inline" id="downloadCsv">Télécharger le CSV</button></div>
         </div>
-
-        <h2 style="font-family:'Fraunces',Georgia,serif; margin-top:28px;">Toutes les cartes</h2>
+        <h2>Toutes les cartes</h2>
         <div class="tablewrap">
           <table>
             <thead><tr><th>URL de la carte</th><th>État</th><th>Durée</th><th>Photo</th><th>Créée le</th><th>Enregistrée le</th></tr></thead>

@@ -3,7 +3,8 @@
 /*
  * Jeu de données de démonstration (développement et recette).
  *
- *   DATA_DIR=./data-demo node scripts/seed-demo.js [dossier des gabarits SVG]
+ *   DATA_DIR=./data-demo node scripts/seed-demo.js [dossier des gabarits SVG] [--reset]
+ *   --reset : supprime d'abord les projets de démonstration existants
  *
  * Crée : un projet en collecte avec 6 contributions (photos de couleur,
  * vocaux factices, textes), un projet scellé et associé à un cadre NFC avec
@@ -33,8 +34,30 @@ async function photo(color, i) {
   return media.processPhoto(buf, { x: 0, y: 150, w: 900, h: 900 });
 }
 
-function audio() {
-  return Buffer.concat([Buffer.from('1a45dfa3', 'hex'), require('crypto').randomBytes(6000)]);
+// Vrai fichier audio (WAV 16 bits mono) : une petite mélodie, pour que les vocaux
+// de démonstration se lisent réellement sur tous les téléphones.
+const NOTES = [[523, 659, 784, 1047], [440, 554, 659, 880], [392, 494, 587, 784], [349, 440, 523, 698]];
+function audio(variant, seconds) {
+  const rate = 22050;
+  const n = Math.round(rate * seconds);
+  const pcm = Buffer.alloc(n * 2);
+  const seq = NOTES[variant % NOTES.length];
+  const noteLen = seconds / seq.length;
+  for (let i = 0; i < n; i++) {
+    const t = i / rate;
+    const k = Math.min(seq.length - 1, Math.floor(t / noteLen));
+    const local = (t - k * noteLen) / noteLen; // 0..1 dans la note
+    const env = Math.min(1, local * 12) * Math.pow(1 - local, 1.5);
+    const f = seq[k];
+    const v = (Math.sin(2 * Math.PI * f * t) * 0.6 + Math.sin(2 * Math.PI * f * 2 * t) * 0.25 + Math.sin(2 * Math.PI * f * 0.5 * t) * 0.15) * env * 0.35;
+    pcm.writeInt16LE(Math.round(v * 32767), i * 2);
+  }
+  const header = Buffer.alloc(44);
+  header.write('RIFF', 0); header.writeUInt32LE(36 + pcm.length, 4); header.write('WAVE', 8);
+  header.write('fmt ', 12); header.writeUInt32LE(16, 16); header.writeUInt16LE(1, 20); header.writeUInt16LE(1, 22);
+  header.writeUInt32LE(rate, 24); header.writeUInt32LE(rate * 2, 28); header.writeUInt16LE(2, 32); header.writeUInt16LE(16, 34);
+  header.write('data', 36); header.writeUInt32LE(pcm.length, 40);
+  return Buffer.concat([header, pcm]);
 }
 
 const RELS = ['ami', 'famille', 'amour', 'collegue', 'autre'];
@@ -52,10 +75,10 @@ async function contribute(project, i, kind) {
   const qtext = store.fillQuestion(q.text, project.recipient_name, project.recipient_gender);
   if (kind === 'text') {
     store.addMemory(project.id, contribution.id, { kind: 'text', isFree: true, text: TEXTS[i % TEXTS.length] });
-    const a = await media.storeAudio(audio(), 'audio/webm', 20 + i * 5, 60);
+    const a = await media.storeAudio(audio(i, 4 + (i % 3)), 'audio/wav', 4 + (i % 3), 60);
     store.addMemory(project.id, contribution.id, { kind: 'voice', audio: a, questionText: qtext, questionCategory: q.category, questionId: q.id });
   } else {
-    const a = await media.storeAudio(audio(), 'audio/webm', 20 + i * 5, 60);
+    const a = await media.storeAudio(audio(i, 4 + (i % 3)), 'audio/wav', 4 + (i % 3), 60);
     const star = store.addMemory(project.id, contribution.id, { kind: 'voice', isFree: true, audio: a });
     store.addMemory(project.id, contribution.id, { kind: 'text', text: TEXTS[(i + 1) % TEXTS.length], questionText: qtext, questionCategory: q.category, questionId: q.id });
     store.setStarMemory(contribution.id, star.id);
@@ -65,8 +88,16 @@ async function contribute(project, i, kind) {
 }
 
 (async () => {
-  const dir = process.argv[2];
+  const args = process.argv.slice(2);
+  const reset = args.includes('--reset');
+  const dir = args.find((a) => !a.startsWith('--'));
   if (dir) require('child_process').spawnSync('node', [path.join(__dirname, 'import-templates.js'), dir], { stdio: 'inherit', env: process.env });
+  if (reset) {
+    // Supprime les projets de démonstration précédents (organisateurs en @example.com)
+    const old = store.listProjects({ limit: 1000 }).filter((p) => /@example\.com$/i.test(p.organizer_email || ''));
+    old.forEach((p) => store.deleteProject(p.id));
+    if (old.length) console.log(`${old.length} projet(s) de démonstration supprimé(s)`);
+  }
   const templates = store.listTemplates(true);
   const formulas = store.listFormulas(true);
 

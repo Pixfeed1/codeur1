@@ -32,7 +32,7 @@
   var S = { flow: D.firstAccess ? 'first' : 'rescan', sc: null, i: 0, list: [], person: null, pi: 0, audio: null, timer: null, raf: null };
 
   function stopAll() {
-    if (S.audio) { S.audio.pause(); S.audio = null; }
+    if (typeof player !== 'undefined') player.stop();
     if (S.timer) { clearTimeout(S.timer); S.timer = null; }
     if (S.raf) { cancelAnimationFrame(S.raf); S.raf = null; }
   }
@@ -107,22 +107,22 @@
     return k + '<div class="mnote' + (long ? ' long' : '') + '"><span class="quote">“</span>' + esc(m.text) + '<div class="sig">— ' + esc(p.name) + '</div></div>';
   }
 
-  // Lance l'audio d'un souvenir vocal ; `done` est appelé à la fin de la lecture.
+  // Lecteur unique (déverrouillé au premier geste, voir RV.audioPlayer) : les vocaux
+  // s'enchaînent automatiquement, même sur iOS.
+  var player = R.audioPlayer();
   function playVoice(m, done) {
     var mv = document.getElementById('mv'), mp = document.getElementById('mplay'), fill = document.querySelector('.mprog i[data-cur]');
     if (!mp) return;
+    var dur = function () { return m.duration || player.el.duration || 0; };
     var start = function () {
-      if (S.audio && !S.audio.paused) { S.audio.pause(); mv.classList.remove('on'); return; }
-      if (!S.audio) {
-        S.audio = new Audio(m.audio);
-        S.audio.onended = function () { mv.classList.remove('on'); if (fill) fill.style.width = '100%'; if (done) S.timer = setTimeout(done, 900); };
-        S.audio.ontimeupdate = function () {
-          if (!S.audio) return;
-          var d = document.getElementById('md'); if (d) d.textContent = R.fmt(S.audio.currentTime) + ' / ' + R.fmt(m.duration || S.audio.duration || 0);
-          if (fill && (m.duration || S.audio.duration)) fill.style.width = Math.min(100, S.audio.currentTime / (m.duration || S.audio.duration) * 100) + '%';
-        };
-      }
-      S.audio.play().then(function () { mv.classList.add('on'); }).catch(function () { /* lecture bloquée : l'utilisateur touchera le bouton */ });
+      if (player.playing() && player.el.src.indexOf(m.audio) >= 0) { player.pause(); mv.classList.remove('on'); return; }
+      player.play(m.audio, {
+        onended: function () { mv.classList.remove('on'); if (fill) fill.style.width = '100%'; if (done) S.timer = setTimeout(done, 900); },
+        ontimeupdate: function () {
+          var d = document.getElementById('md'); if (d) d.textContent = R.fmt(player.el.currentTime) + ' / ' + R.fmt(dur());
+          if (fill && dur()) fill.style.width = Math.min(100, player.el.currentTime / dur() * 100) + '%';
+        },
+      }).then(function () { mv.classList.add('on'); }).catch(function () { mv.classList.remove('on'); /* lecture bloquée : le bouton lecture reste disponible */ });
     };
     mp.onclick = function (e) { e.stopPropagation(); start(); };
     start();

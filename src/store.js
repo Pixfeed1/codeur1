@@ -359,6 +359,19 @@ function unlinkFrame(projectId) {
   db.prepare('UPDATE frames SET project_id = NULL, linked_at = NULL WHERE project_id = ?').run(projectId);
 }
 
+// Suppression complète d'un projet (contenus compris). Les fichiers restent sur le disque.
+function deleteProject(projectId) {
+  const tx = db.transaction(() => {
+    unlinkFrame(projectId);
+    db.prepare('DELETE FROM memories WHERE project_id = ?').run(projectId);
+    db.prepare('DELETE FROM photos WHERE project_id = ?').run(projectId);
+    db.prepare('DELETE FROM contributions WHERE project_id = ?').run(projectId);
+    db.prepare('UPDATE email_log SET project_id = NULL WHERE project_id = ?').run(projectId);
+    return db.prepare('DELETE FROM projects WHERE id = ?').run(projectId).changes;
+  });
+  return tx();
+}
+
 // ---------------------------------------------------------------------------
 // Projets
 // ---------------------------------------------------------------------------
@@ -868,6 +881,7 @@ function setShopifyEventResult(id, result) {
 
 module.exports = {
   now,
+  deleteProject,
   hashToken,
   getOrganizerToken,
   getSetting, setSetting, allSettings,

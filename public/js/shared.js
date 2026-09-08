@@ -85,6 +85,8 @@ window.RV = (function () {
     var el = document.createElement('img');
     el.src = img.src;
     el.draggable = false;
+    el.style.width = W + 'px';   // même géométrie que l'image envoyée au serveur,
+    el.style.height = H + 'px';  // quelle que soit la taille de l'originale
     container.appendChild(el);
     var hint = document.createElement('div');
     hint.className = 'hint';
@@ -127,7 +129,7 @@ window.RV = (function () {
 
   /* Enregistreur vocal : MediaRecorder, minuterie, arrêt automatique */
   function recorder(opts) {
-    var stream = null, rec = null, chunks = [], startedAt = 0, timer = null;
+    var stream = null, rec = null, chunks = [], startedAt = 0, timer = null, stopping = null;
     function pickMime() {
       var c = ['audio/webm;codecs=opus', 'audio/webm', 'audio/mp4', 'audio/ogg;codecs=opus'];
       for (var i = 0; i < c.length; i++) if (window.MediaRecorder && MediaRecorder.isTypeSupported(c[i])) return c[i];
@@ -140,20 +142,21 @@ window.RV = (function () {
           stream = st;
           var mime = pickMime();
           rec = mime ? new MediaRecorder(st, { mimeType: mime }) : new MediaRecorder(st);
-          chunks = [];
+          chunks = []; stopping = null;
           rec.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
           rec.start(250);
           startedAt = Date.now();
           timer = setInterval(function () {
             var s = (Date.now() - startedAt) / 1000;
             if (opts.onTick) opts.onTick(s);
-            if (s >= opts.maxSeconds) this.stop();
+            if (s >= opts.maxSeconds) this.stop().then(function (r) { if (opts.onAutoStop) opts.onAutoStop(r); });
           }.bind(this), 250);
         }.bind(this));
       },
       stop: function () {
         var self = this;
-        return new Promise(function (resolve) {
+        if (stopping) return stopping; // déjà arrêté (par exemple à la durée max) : même résultat
+        stopping = new Promise(function (resolve) {
           if (!rec || rec.state === 'inactive') return resolve(null);
           var duration = Math.min((Date.now() - startedAt) / 1000, opts.maxSeconds);
           rec.onstop = function () {
@@ -164,6 +167,7 @@ window.RV = (function () {
           };
           rec.stop();
         });
+        return stopping;
       },
       cleanup: function () {
         if (timer) clearInterval(timer);
@@ -182,5 +186,41 @@ window.RV = (function () {
     return a;
   }
 
-  return { esc: esc, fmt: fmt, bars: bars, fmtDate: fmtDate, fmtShort: fmtShort, todayISO: todayISO, addDays: addDays, daysBetween: daysBetween, pron: pron, api: api, loadImage: loadImage, shrink: shrink, cropper: cropper, recorder: recorder, player: player };
+  /* Lecteur unique pour les stories : iOS n'autorise play() que dans une interaction,
+     mais un élément déjà lancé une fois peut ensuite rejouer sans geste (enchaînement automatique). */
+  var SILENT = 'data:audio/wav;base64,UklGRiQAAABXQVZFZm10IBAAAAABAAEARKwAAIhYAQACABAAZGF0YQAAAAA=';
+  function audioPlayer() {
+    var el = new Audio();
+    el.preload = 'auto';
+    var unlocked = false;
+    function unlock() {
+      if (unlocked) return;
+      unlocked = true;
+      try {
+        el.src = SILENT;
+        var pr = el.play();
+        // ne mettre en pause que si rien de réel n'a été lancé entre-temps
+        if (pr && pr.catch) pr.then(function () { if (el.src === SILENT) el.pause(); }).catch(function () { unlocked = false; });
+      } catch (e) { unlocked = false; }
+    }
+    document.addEventListener('touchend', unlock, { capture: true, passive: true });
+    document.addEventListener('click', unlock, { capture: true });
+    return {
+      el: el,
+      play: function (url, h) {
+        h = h || {};
+        el.onended = h.onended || null;
+        el.ontimeupdate = h.ontimeupdate || null;
+        el.onpause = null;
+        if (el.src !== url) { el.src = url; el.load(); }
+        var pr = el.play();
+        return pr && pr.catch ? pr : Promise.resolve();
+      },
+      pause: function () { try { el.pause(); } catch (e) { /* rien */ } },
+      stop: function () { try { el.pause(); el.onended = null; el.ontimeupdate = null; el.removeAttribute('src'); el.load(); } catch (e) { /* rien */ } },
+      playing: function () { return !el.paused && !el.ended && el.src && el.src !== SILENT; },
+    };
+  }
+
+  return { esc: esc, fmt: fmt, bars: bars, fmtDate: fmtDate, fmtShort: fmtShort, todayISO: todayISO, addDays: addDays, daysBetween: daysBetween, pron: pron, api: api, loadImage: loadImage, shrink: shrink, cropper: cropper, recorder: recorder, player: player, audioPlayer: audioPlayer };
 })();

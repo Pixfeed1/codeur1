@@ -239,20 +239,21 @@
   function micTog(ctx) {
     var st = ctx === 'free' ? S.free : S.q;
     var mic = document.getElementById('mic'), rt = document.getElementById('rt'), wave = document.getElementById('wave');
-    if (recObj && recObj.recording()) {
-      recObj.stop().then(function (r) {
-        if (!r) { var e = app.querySelector('.error'); e.textContent = 'Message trop court, réessaie.'; e.classList.add('show'); mic.classList.remove('rec'); wave.classList.remove('on'); return; }
-        st.audio = r.blob; st.mime = r.mime; st.duration = r.duration; render();
-      });
-      return;
-    }
-    recObj = R.recorder({ maxSeconds: MAX_S, onTick: function (s) { rt.textContent = R.fmt(s); } });
+    var onResult = function (r) {
+      if (!r) { var e = app.querySelector('.error'); if (e) { e.textContent = 'Message trop court, réessaie.'; e.classList.add('show'); } if (mic) mic.classList.remove('rec'); if (wave) wave.classList.remove('on'); return; }
+      st.audio = r.blob; st.mime = r.mime; st.duration = r.duration; render();
+    };
+    if (recObj && recObj.recording()) { recObj.stop().then(onResult); return; }
+    var self = R.recorder({
+      maxSeconds: MAX_S,
+      onTick: function (s) { var el = document.getElementById('rt'); if (el) el.textContent = R.fmt(s); },
+      // durée max atteinte : l'enregistrement s'arrête tout seul et ce qui a été dit est conservé
+      onAutoStop: function (r) { if (self === recObj && st.audio == null && document.getElementById('mic')) onResult(r); },
+    });
+    recObj = self;
     if (!recObj.supported) { var e = app.querySelector('.error'); e.textContent = 'Ton navigateur ne permet pas l’enregistrement. Essaie Safari ou Chrome à jour, ou réponds par écrit.'; e.classList.add('show'); return; }
-    var self = recObj;
     recObj.start().then(function () {
       mic.classList.add('rec'); wave.classList.add('on');
-      // arrêt automatique à la durée max
-      var check = setInterval(function () { if (!self.recording()) { clearInterval(check); if (self === recObj && st.audio == null && document.getElementById('mic')) micTog(ctx); } }, 300);
     }).catch(function () { var e = app.querySelector('.error'); e.textContent = 'Micro inaccessible. Autorise l’accès au micro puis réessaie.'; e.classList.add('show'); });
   }
   var previewAudio = null;
@@ -414,12 +415,12 @@
     document.getElementById('story').onclick = function () { S.mpi = 0; go('mstory'); };
     document.getElementById('rev').onclick = function () { go('review'); };
   };
-  var storyAudio = null;
+  var storyPlayer = R.audioPlayer();
   SC.mstory = function () { playMine(S.mpi); };
   function playMine(i) {
     var ps = pieces();
     if (!ps.length) { go('review'); return; }
-    if (storyAudio) { storyAudio.pause(); storyAudio = null; }
+    storyPlayer.stop();
     var p = ps[i];
     var bars = ps.map(function (_, k) { return '<div class="p"><i style="width:' + (k < i ? '100%' : k === i ? '100%' : '0') + '"></i></div>'; }).join('');
     var bg = p.mode === 'photo' && p.photoUrl ? 'background-image:url(\'' + p.photoUrl + '\')' : S.photo && S.photo.url ? 'background-image:url(\'' + S.photo.url + '\')' : '';
@@ -432,16 +433,22 @@
       '<div class="mshead"><div class="mava" style="' + (S.selfie ? 'background-image:url(\'' + S.selfie.url + '\')' : '') + '">' + (S.selfie ? '' : R.esc((S.name || '?')[0])) + '</div><div class="mnm">' + R.esc(S.name || 'Toi') + '</div><button class="mx" id="mx">✕</button></div>' +
       '<div class="msbody">' + inner + '</div>' +
       '<div class="mtaps"><div class="l" id="ml"></div><div class="r" id="mr"></div></div><div class="mtaphint">Touche à droite pour continuer</div></div>';
-    document.getElementById('mx').onclick = function () { if (storyAudio) storyAudio.pause(); go('review'); };
+    document.getElementById('mx').onclick = function () { storyPlayer.stop(); go('review'); };
     document.getElementById('ml').onclick = function () { if (S.mpi > 0) { S.mpi--; playMine(S.mpi); } };
-    document.getElementById('mr').onclick = function () { if (S.mpi < ps.length - 1) { S.mpi++; playMine(S.mpi); } else { if (storyAudio) storyAudio.pause(); go('review'); } };
+    document.getElementById('mr').onclick = function () { if (S.mpi < ps.length - 1) { S.mpi++; playMine(S.mpi); } else { storyPlayer.stop(); go('review'); } };
     var mp = document.getElementById('mplay');
-    if (mp) mp.onclick = function () {
-      var mv = document.getElementById('mv');
-      if (storyAudio && !storyAudio.paused) { storyAudio.pause(); mv.classList.remove('on'); return; }
-      if (!storyAudio) { storyAudio = new Audio(p.audioUrl); storyAudio.onended = function () { mv.classList.remove('on'); }; storyAudio.ontimeupdate = function () { var d = document.getElementById('md'); if (d) d.textContent = R.fmt(storyAudio.currentTime) + ' / ' + R.fmt(p.duration); }; }
-      storyAudio.play().then(function () { mv.classList.add('on'); }).catch(function () {});
-    };
+    if (mp) {
+      var playStory = function () {
+        var mv = document.getElementById('mv');
+        if (storyPlayer.playing()) { storyPlayer.pause(); mv.classList.remove('on'); return; }
+        storyPlayer.play(p.audioUrl, {
+          onended: function () { mv.classList.remove('on'); },
+          ontimeupdate: function () { var d = document.getElementById('md'); if (d) d.textContent = R.fmt(storyPlayer.el.currentTime) + ' / ' + R.fmt(p.duration); },
+        }).then(function () { mv.classList.add('on'); }).catch(function () {});
+      };
+      mp.onclick = function (e) { e.stopPropagation(); playStory(); };
+      playStory(); // lecture automatique, comme dans le reveal du destinataire
+    }
   }
   SC.review = function () {
     var ps = pieces();

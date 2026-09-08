@@ -25,12 +25,12 @@
 .stat.warn { border-color: rgba(221,115,85,0.4); }
 
 .toolbar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-top: 14px; }
-.toolbar input[type=text], .toolbar input[type=search], .toolbar select, .toolbar input[type=number],
-.form input, .form select, .form textarea {
+.toolbar input[type=text], .toolbar input[type=search], .toolbar input[type=email], .toolbar select, .toolbar input[type=number],
+.form input, .form select, .form textarea, textarea.form {
   border: 1.5px solid rgba(51,41,31,0.14); border-radius: 12px; background: #fffdf6; padding: 9px 12px;
   font: inherit; font-size: 0.92rem; color: var(--ink); outline: none;
 }
-.toolbar input:focus, .form input:focus, .form select:focus, .form textarea:focus { border-color: var(--coral); }
+.toolbar input:focus, .form input:focus, .form select:focus, .form textarea:focus, textarea.form:focus { border-color: var(--coral); }
 .toolbar .btn, .form .btn, .btn.inline { width: auto; margin-top: 0; padding: 9px 18px; font-size: 0.9rem; box-shadow: none; }
 .btn.inline.small { padding: 6px 12px; font-size: 0.8rem; }
 .btn.danger { background: #b4472c; }

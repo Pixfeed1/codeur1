@@ -583,7 +583,7 @@
         var key = pair[0], label = pair[1];
         var c = document.createElement('div');
         c.className = 'card visual';
-        c.innerHTML = (d.visuals[key] ? '<img alt="" src="' + esc(d.visuals[key]) + '?v=' + Date.now() + '">' : '<div class="visual-empty">Illustration par défaut</div>')<div class="small" style="margin-top:8px"><b>' + esc(label) + '</b></div>' +
+        c.innerHTML = (d.visuals[key] ? '<img alt="" src="' + esc(d.visuals[key]) + '?v=' + Date.now() + '">' : '<div class="visual-empty">Illustration par défaut</div>') + '<div class="small" style="margin-top:8px"><b>' + esc(label) + '</b></div>' +
           '<div class="row"><input type="file" accept="image/*" data-file style="max-width:160px"><button class="btn inline small" data-up>Envoyer</button>' + (d.visuals[key] ? '<button class="btn inline small ghost danger" data-rm>Retirer</button>' : '') + '</div>';
         c.querySelector('[data-up]').addEventListener('click', function () {
           var f = c.querySelector('[data-file]').files[0];

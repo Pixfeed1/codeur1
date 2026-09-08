@@ -200,9 +200,10 @@ textarea.ta:focus { outline: none; border-color: var(--gold-soft); }
 .mnm { font-weight: 800; font-size: 13px; text-shadow: 0 1px 6px rgba(0,0,0,.5); }
 .mrel { font-weight: 600; font-size: 11px; opacity: .8; }
 .mx { margin-left: auto; font-size: 20px; cursor: pointer; opacity: .9; background: none; border: 0; color: #fff; }
-.msbody { position: absolute; left: 26px; right: 26px; bottom: 34px; top: 92px; z-index: 30; overflow: auto; display: flex; flex-direction: column; justify-content: flex-end; }
+.msbody { position: absolute; left: 26px; right: 26px; bottom: 34px; top: 92px; z-index: 30; overflow: auto; -webkit-overflow-scrolling: touch; display: flex; flex-direction: column; justify-content: flex-start; }
+.msbody > :first-child { margin-top: auto; } /* bas de l'écran si court, défilement complet si long */
 .mkick { font-size: 10px; letter-spacing: .22em; text-transform: uppercase; font-weight: 800; color: #D8BE8C; margin-bottom: 14px; }
-.mnote { font-family: 'Fraunces', Georgia, serif; font-weight: 300; font-size: 24px; line-height: 1.42; color: #fff; white-space: pre-wrap; }
+.mnote { font-family: 'Fraunces', Georgia, serif; font-weight: 300; font-size: 24px; line-height: 1.42; color: #fff; white-space: pre-wrap; overflow-wrap: anywhere; }
 .mnote.long { font-size: 19px; }
 .mphotocap { color: rgba(255,255,255,.9); font-weight: 700; font-size: 14px; }
 .mvoice { display: flex; align-items: center; gap: 12px; }
@@ -212,7 +213,7 @@ textarea.ta:focus { outline: none; border-color: var(--gold-soft); }
 .mvoice.on .w i { animation: eq .9s ease-in-out infinite; }
 .mvoice .d { color: #fff; font-weight: 800; font-size: 12px; font-variant-numeric: tabular-nums; }
 .mtaps { position: absolute; inset: 64px 0 0 0; z-index: 34; pointer-events: none; }
-.mtaps .l, .mtaps .r { position: absolute; top: 0; bottom: 0; width: 32%; pointer-events: auto; cursor: pointer; }
+.mtaps .l, .mtaps .r { position: absolute; top: 0; bottom: 0; width: 22%; pointer-events: auto; cursor: pointer; }
 .mtaps .l { left: 0; }
 .mtaps .r { right: 0; }
 .mtaphint { position: absolute; bottom: 12px; left: 0; right: 0; text-align: center; color: rgba(255,255,255,.55); font-size: 11px; font-weight: 700; z-index: 41; pointer-events: none; }
@@ -306,8 +307,9 @@ textarea.ta:focus { outline: none; border-color: var(--gold-soft); }
 .mnote .quote { font-size: 44px; color: var(--gold-soft); line-height: .6; display: block; height: 26px; margin-top: 6px; opacity: .8; }
 .mnote .sig, .bigtext .sig { font-family: 'Caveat', cursive; font-weight: 600; font-size: 24px; color: var(--gold-soft); margin-top: 16px; }
 .skipst { margin-left: auto; background: rgba(255,255,255,.18); color: #fff; border: 0; font-weight: 800; font-size: 12.5px; padding: 7px 13px; border-radius: 999px; cursor: pointer; }
-.msbody.top { justify-content: flex-start; padding-top: 6px; }
-.bigtext { font-family: 'Fraunces', Georgia, serif; font-weight: 300; font-size: 22px; line-height: 1.46; color: #fff; white-space: pre-wrap; text-shadow: 0 1px 14px rgba(0,0,0,.55); }
+.msbody.top { padding-top: 6px; }
+.msbody.top > :first-child { margin-top: 0; }
+.bigtext { font-family: 'Fraunces', Georgia, serif; font-weight: 300; font-size: 22px; line-height: 1.46; color: #fff; white-space: pre-wrap; overflow-wrap: anywhere; text-shadow: 0 1px 14px rgba(0,0,0,.55); }
 .mveil.top { background: linear-gradient(180deg, rgba(20,12,8,.78) 0%, rgba(20,12,8,.55) 45%, rgba(20,12,8,.25) 70%, rgba(20,12,8,.85) 100%); }
 .mnote { text-shadow: 0 1px 12px rgba(0,0,0,.45); }
 .rc-lib { position: relative; display: flex; flex-direction: column; flex: 1; min-height: 100dvh; background: var(--paper); }
@@ -322,3 +324,11 @@ textarea.ta:focus { outline: none; border-color: var(--gold-soft); }
 .rc-ava .pinit { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 30px; color: #fff; }
 .rc-ava .more { position: absolute; left: 3px; top: 3px; background: var(--gold); color: #241d12; border: 2px solid var(--paper); border-radius: 999px; min-width: 18px; height: 18px; display: flex; align-items: center; justify-content: center; font-size: 9px; font-weight: 800; padding: 0 3px; }
 .rc-person .pn { font-weight: 600; font-size: 12.5px; color: var(--ink); }
+
+/* --- fenêtre de validation (scellement) --- */
+.modal { position: fixed; inset: 0; z-index: 80; background: rgba(36,26,18,.55); display: flex; align-items: flex-end; justify-content: center; padding: 16px; }
+@media (min-width: 520px) { .modal { align-items: center; } }
+.modal .box { background: var(--paper); border-radius: 22px; padding: 22px 20px 18px; width: 100%; max-width: 380px; box-shadow: 0 30px 60px -20px rgba(0,0,0,.6); animation: fade .3s ease both; }
+.modal h2 { font-family: 'Fraunces', Georgia, serif; font-weight: 400; font-size: 24px; margin: 4px 0 12px; }
+.modal .ck { display: flex; gap: 12px; align-items: flex-start; padding: 10px 0; border-top: 1px solid var(--line); font-weight: 600; font-size: 14px; line-height: 1.4; cursor: pointer; }
+.modal .ck input { width: 22px; height: 22px; flex: 0 0 auto; accent-color: var(--gold); margin-top: 1px; }

@@ -102,27 +102,19 @@
 
   /* ------------------------------------------------- 1b. présentations */
   SC.moi = function () {
-    var rels = ST.relations || [];
+    // La question « tu es… ? » (lien avec la personne fêtée) a été retirée à la demande du client.
     app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">On fait les présentations</span><h1>Et toi,<br>tu es… ?</h1></div>' +
       '<div class="body">' +
         '<div class="selfiewrap"><div class="selfie" id="selfie">' + (S.selfie ? '<img src="' + S.selfie.url + '" alt="">' : '<span class="cam">📷</span>') + '</div>' +
           '<div class="sfl">' + (S.selfie ? 'Me reprendre' : 'Ajoute une photo de toi') + '</div>' +
           '<div class="sub" style="margin-top:5px">Ton plus beau sourire… ou ta pire grimace.</div></div>' +
         '<div class="field" style="margin-top:18px"><label for="nm">Ton prénom</label><input class="inp" id="nm" value="' + R.esc(S.name) + '" placeholder="Ex. Lucas" maxlength="40" autocomplete="given-name"></div>' +
-        '<div style="font-weight:800;font-size:12.5px;margin:16px 0 10px">Et pour ' + R.esc(P) + ', tu es ? <span style="color:var(--muted);font-weight:600">· facultatif</span></div>' +
-        '<div class="rchips" id="rels">' + rels.map(function (r) { return '<div class="rchip' + (S.rel === r[0] ? ' on' : '') + '" data-rel="' + r[0] + '">' + R.esc(r[1]) + '</div>'; }).join('') + '</div>' +
         '<p class="error"></p>' +
         '<div class="stack" style="margin-top:24px"><button class="btn gold" id="next" data-busy="Continuer →">Continuer <span class="arrow"></span></button></div>' +
       '</div></div>';
     document.getElementById('back').onclick = function () { go('invite'); };
     document.getElementById('selfie').onclick = function () { fps.click(); };
     document.getElementById('nm').oninput = function () { S.name = this.value; };
-    document.getElementById('rels').onclick = function (e) {
-      var c = e.target.closest('.rchip');
-      if (!c) return;
-      S.rel = S.rel === c.dataset.rel ? null : c.dataset.rel;
-      render();
-    };
     document.getElementById('next').onclick = validMoi;
   };
   function validMoi() {

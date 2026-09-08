@@ -12,7 +12,7 @@
   var svgSeq = 0;
 
   function esc(s) { return R.esc(s); }
-  function render() { try { SC[S.sc](); } catch (e) { console.error(e); } window.scrollTo(0, 0); }
+  function render(keep) { var y = window.scrollY; try { SC[S.sc](); } catch (e) { console.error(e); } window.scrollTo(0, keep ? y : 0); }
   function go(x) { S.sc = x; render(); }
   function P() { return D.project.recipientName || 'votre proche'; }
   function pr() { return R.pron(D.project.recipientGender); }
@@ -173,7 +173,7 @@
         '<a class="btn line" href="' + esc(D.previewUrl) + '" target="_blank" rel="noopener">👀  Voir ce que ' + esc(P()) + ' découvrira</a>' +
         (collecting ? '<button class="skip" id="edit">Modifier les informations</button>' : '') +
       '</div>' +
-      '<div class="foot">Tableau de bord personnel · <a href="/acces">lien perdu ?</a></div>' +
+      '<div class="foot">Tu as perdu l’adresse de cette page ? <a href="/acces">Recevoir un nouveau lien</a></div>' +
       '</div></div>';
     var cm = document.getElementById('copyMsg'); if (cm) cm.onclick = function () { copy(msg, cm, 'Copié ✓'); };
     var cl = document.getElementById('copyLink'); if (cl) cl.onclick = function () { copy(D.participationUrl, cl, 'Copié ✓'); };
@@ -238,17 +238,18 @@
     }).join('');
     app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">Collecte terminée · ' + D.project.used + ' proches</span><h1>Compose le cadre<br>de ' + esc(P()) + '</h1></div>' +
       '<div class="body">' +
-        '<div class="product" style="margin-bottom:18px"><div class="frame" id="frame"></div><div class="hintline" style="text-align:center;margin-top:10px">Aperçu · ' + (t ? esc(t.name) : 'choisis une mise en page') + '</div></div>' +
-        '<label style="font-weight:800;font-size:12.5px;display:block;margin-bottom:8px">Mise en page</label><div class="gabs" id="gabs">' + gabs + '</div>' +
+        '<label style="font-weight:800;font-size:12.5px;display:block;margin-bottom:8px">1 · Mise en page</label><div class="gabs" id="gabs">' + gabs + '</div>' +
+        '<label style="font-weight:800;font-size:12.5px;display:block;margin:6px 0 8px">2 · Aperçu du cadre</label>' +
+        '<div class="product" style="margin-bottom:18px"><div class="frame" id="frame"></div><div class="hintline" style="text-align:center;margin-top:10px">' + (t ? esc(t.name) : 'choisis une mise en page') + ' · les photos s’affichent dans l’ordre choisi</div></div>' +
         (t && t.hasText ? '<div class="field"><label>Ton petit mot sur le cadre</label><input class="inp" id="ftext" value="' + esc(S.frameText) + '" maxlength="80" placeholder="Ex. Joyeux anniversaire ' + esc(P()) + ' !"></div>' : '') +
-        '<div class="selcount"><span class="t">Photos sur le cadre</span><span class="chip">' + chosen + ' / ' + need + '</span></div>' +
+        '<div class="selcount"><span class="t">3 · Photos sur le cadre</span><span class="chip">' + chosen + ' / ' + need + '</span></div>' +
         '<div class="hintline" style="margin:-4px 0 12px">Touche pour ajouter ou retirer, dans l’ordre des emplacements. ' + (chosen < need ? 'Il en manque ' + (need - chosen) + ' : complète avec tes propres photos si besoin.' : chosen > need ? 'Retire-en ' + (chosen - need) + '.' : 'Le compte est bon !') + '</div>' +
         '<div class="poolgrid" id="pool">' + pool + '<div class="pc add" id="addPhotos">+</div></div>' +
         '<p class="error"></p>' +
         '<div class="stack" style="margin-top:22px"><button class="btn" id="validate" data-busy' + (chosen === need && need > 0 ? '' : ' disabled') + '>Valider la composition</button></div>' +
       '</div></div>';
     document.getElementById('back').onclick = function () { go('dashboard'); };
-    document.getElementById('gabs').onclick = function (e) { var g = e.target.closest('.gab'); if (!g) return; S.tpl = Number(g.dataset.t); scheduleSave(); render(); };
+    document.getElementById('gabs').onclick = function (e) { var g = e.target.closest('.gab'); if (!g) return; S.tpl = Number(g.dataset.t); scheduleSave(); render(true); };
     var ft = document.getElementById('ftext'); if (ft) ft.oninput = function () { S.frameText = this.value; scheduleSave(); };
     document.getElementById('pool').onclick = function (e) {
       var rm = e.target.closest('[data-rm]');
@@ -257,7 +258,7 @@
       if (!c) return;
       var id = Number(c.dataset.p), i = S.sel.indexOf(id);
       if (i >= 0) S.sel.splice(i, 1); else S.sel.push(id);
-      scheduleSave(); render();
+      scheduleSave(); render(true);
     };
     document.getElementById('addPhotos').onclick = function () { fpo.click(); };
     document.getElementById('validate').onclick = function () {
@@ -270,15 +271,37 @@
   fpo.onchange = function () {
     var files = Array.prototype.slice.call(fpo.files); fpo.value = '';
     if (!files.length) return;
-    var chain = Promise.resolve();
-    files.forEach(function (f) {
-      chain = chain.then(function () {
-        return R.loadImage(f).then(function (l) { return R.shrink(l.img, 2000); }).then(function (s) {
-          return api('POST', '/photos', { body: s.blob, headers: { 'Content-Type': 'image/jpeg' } });
-        }).then(function (p) { D.photos.push(p); S.sel.push(p.id); });
-      });
+    setBusy(true);
+    Promise.all(files.map(function (f) {
+      return R.loadImage(f).then(function (l) { return R.shrink(l.img, 2000).then(function (sh) { return { img: l.img, shrunk: sh, url: URL.createObjectURL(sh.blob) }; }); }).catch(function () { return null; });
+    })).then(function (items) {
+      setBusy(false);
+      S.cropQueue = items.filter(Boolean);
+      S.cropIdx = 0;
+      if (!S.cropQueue.length) { fail({ message: 'unreadable_image' }); return; }
+      go('ocrop');
     });
-    chain.then(function () { scheduleSave(); render(); }).catch(fail);
+  };
+  var ocrop = null;
+  SC.ocrop = function () {
+    var it = S.cropQueue[S.cropIdx];
+    if (!it) { scheduleSave(); go('finalisation'); return; }
+    var total = S.cropQueue.length;
+    app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">Ta photo' + (total > 1 ? ' · ' + (S.cropIdx + 1) + ' / ' + total : '') + '</span><h1>Choisis le cadrage</h1></div>' +
+      '<div class="body"><div class="sub" style="margin:-2px 0 16px">Déplace et zoome : c’est ce carré qui apparaîtra sur le cadre.</div>' +
+      '<div class="cropper" id="cropper"></div><input type="range" class="zoom" id="zoom" min="1" max="4" step="0.01" value="1">' +
+      '<p class="error"></p>' +
+      '<div class="stack" style="margin-top:14px"><button class="btn gold" id="cropOk" data-busy>Ça me va</button><button class="skip" id="cropSkip">Ne pas ajouter cette photo</button></div></div></div>';
+    document.getElementById('back').onclick = function () { S.cropQueue = []; go('finalisation'); };
+    ocrop = R.cropper(document.getElementById('cropper'), it.img, it.shrunk);
+    document.getElementById('zoom').oninput = function () { ocrop.setZoom(Number(this.value)); };
+    document.getElementById('cropSkip').onclick = function () { S.cropIdx++; render(); };
+    document.getElementById('cropOk').onclick = function () {
+      setBusy(true);
+      api('POST', '/photos', { body: it.shrunk.blob, headers: { 'Content-Type': 'image/jpeg', 'X-Crop': JSON.stringify(ocrop.getCrop()) } })
+        .then(function (p) { D.photos.push(p); S.sel.push(p.id); setBusy(false); S.cropIdx++; render(); })
+        .catch(fail);
+    };
   };
   function removeOwnPhoto(id) {
     if (!confirm('Retirer cette photo ?')) return;
@@ -306,9 +329,25 @@
       '</div></div>';
     document.getElementById('back').onclick = function () { go('finalisation'); };
     document.getElementById('seal').onclick = function () {
-      if (!confirm('Sceller le cadre de ' + P() + ' ? Cette action est définitive : la collecte se ferme et la fabrication démarre.')) return;
-      setBusy(true);
-      api('POST', '/seal', { body: { confirm: true } }).then(function (d) { D = d; setBusy(false); go('fabrique'); }).catch(fail);
+      var checks = [
+        'J’ai vérifié les ' + S.sel.length + ' photos et leur ordre sur l’aperçu',
+        t && t.hasText ? 'Le petit mot « ' + esc(S.frameText || '') + ' » est correct, sans faute' : null,
+        'Je comprends que la collecte se ferme : les proches ne pourront plus rien ajouter',
+        'Je lance la fabrication du cadre de ' + esc(P()) + ', c’est définitif',
+      ].filter(Boolean);
+      var modal = document.createElement('div');
+      modal.className = 'modal';
+      modal.innerHTML = '<div class="box"><div class="kicker" style="text-align:left">Dernière vérification</div><h2>Avant de sceller</h2>' +
+        checks.map(function (c, i) { return '<label class="ck"><input type="checkbox" data-ck="' + i + '"><span>' + c + '</span></label>'; }).join('') +
+        '<div class="stack" style="margin-top:16px"><button class="btn gold" id="sealGo" disabled>Sceller définitivement</button><button class="btn line" id="sealNo">Pas encore</button></div></div>';
+      document.body.appendChild(modal);
+      var goBtn = modal.querySelector('#sealGo');
+      modal.addEventListener('change', function () { goBtn.disabled = modal.querySelectorAll('[data-ck]:checked').length !== checks.length; });
+      modal.querySelector('#sealNo').onclick = function () { modal.remove(); };
+      goBtn.onclick = function () {
+        goBtn.disabled = true; goBtn.textContent = 'Scellement…';
+        api('POST', '/seal', { body: { confirm: true } }).then(function (d) { modal.remove(); D = d; go('fabrique'); }).catch(function (err) { modal.remove(); fail(err); });
+      };
     };
     loadPreview();
   };

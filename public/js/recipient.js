@@ -140,7 +140,7 @@
   }
   function durationFor(m) {
     if (m.kind === 'photo') return 5000;
-    return Math.min(14000, Math.max(4500, 3000 + (m.text || '').length * 45));
+    return Math.min(30000, Math.max(4500, 3000 + (m.text || '').length * 45));
   }
 
   function card(i) {

@@ -1,0 +1,616 @@
+<svg
+   width="180mm"
+   height="240mm"
+   viewBox="0 0 180 240"
+   version="1.1"
+   id="svg49"
+   sodipodi:docname="ravive_48_photos_texte.svg"
+   inkscape:version="1.4.4 (dcaf3e7d, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs49" />
+  
+  <title
+     id="title1">Ravive - gabarit mosaïque 18x24 cm</title>
+  <desc
+     id="desc1">Les rectangles avec id photo_XX sont les emplacements photo. La zone text_zone est réservée au texte.</desc>
+  <style
+     id="style1">
+    .photo-slot { fill:#e8e4de; stroke:#ffffff; stroke-width:0.8; }
+    .slot-label { font-family:Arial,sans-serif; font-size:4px; fill:#8b857d; text-anchor:middle; dominant-baseline:middle; }
+    .text-zone { fill:#f7f1e8; stroke:#b8aa98; stroke-width:0.5; }
+    .text-label { font-family:Georgia,serif; font-size:6px; fill:#6b5140; text-anchor:middle; dominant-baseline:middle; }
+    .safe { fill:none; stroke:#d8cec1; stroke-width:0.3; stroke-dasharray:2 2; }
+  </style>
+  <rect
+     id="photo_01"
+     class="photo-slot"
+     x="0.74334276"
+     y="0.055780523"
+     width="35.200878"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="13.500"
+     id="text1">1</text>
+  <rect
+     id="photo_02"
+     class="photo-slot"
+     x="36.000"
+     y="0.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="13.500"
+     id="text2">2</text>
+  <rect
+     id="photo_03"
+     class="photo-slot"
+     x="63.000"
+     y="0.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="13.500"
+     id="text3">3</text>
+  <rect
+     id="photo_04"
+     class="photo-slot"
+     x="90.000"
+     y="0.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="13.500"
+     id="text4">4</text>
+  <rect
+     id="photo_05"
+     class="photo-slot"
+     x="117.000"
+     y="0.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="13.500"
+     id="text5">5</text>
+  <rect
+     id="photo_06"
+     class="photo-slot"
+     x="144.0627"
+     y="0.062693074"
+     width="36.295376"
+     height="26.874615" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="13.500"
+     id="text6">6</text>
+  <rect
+     id="photo_07"
+     class="photo-slot"
+     x="0.74334276"
+     y="27.05578"
+     width="35.200878"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="40.500"
+     id="text7">7</text>
+  <rect
+     id="photo_08"
+     class="photo-slot"
+     x="36.000"
+     y="27.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="40.500"
+     id="text8">8</text>
+  <rect
+     id="photo_09"
+     class="photo-slot"
+     x="63.000"
+     y="27.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="40.500"
+     id="text9">9</text>
+  <rect
+     id="photo_10"
+     class="photo-slot"
+     x="90.000"
+     y="27.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="40.500"
+     id="text10">10</text>
+  <rect
+     id="photo_11"
+     class="photo-slot"
+     x="117.000"
+     y="27.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="40.500"
+     id="text11">11</text>
+  <rect
+     id="photo_12"
+     class="photo-slot"
+     x="144.0627"
+     y="27.062693"
+     width="36.295376"
+     height="26.874615" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="40.500"
+     id="text12">12</text>
+  <rect
+     id="photo_13"
+     class="photo-slot"
+     x="0.74334276"
+     y="54.055782"
+     width="35.200878"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="67.500"
+     id="text13">13</text>
+  <rect
+     id="photo_14"
+     class="photo-slot"
+     x="36.000"
+     y="54.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="67.500"
+     id="text14">14</text>
+  <rect
+     id="photo_15"
+     class="photo-slot"
+     x="63.000"
+     y="54.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="67.500"
+     id="text15">15</text>
+  <rect
+     id="photo_16"
+     class="photo-slot"
+     x="90.000"
+     y="54.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="67.500"
+     id="text16">16</text>
+  <rect
+     id="photo_17"
+     class="photo-slot"
+     x="117.000"
+     y="54.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="67.500"
+     id="text17">17</text>
+  <rect
+     id="photo_18"
+     class="photo-slot"
+     x="144.0627"
+     y="54.062695"
+     width="36.295376"
+     height="26.874615" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="67.500"
+     id="text18">18</text>
+  <rect
+     id="photo_19"
+     class="photo-slot"
+     x="0.74334276"
+     y="81.055779"
+     width="35.200878"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="94.500"
+     id="text19">19</text>
+  <rect
+     id="photo_20"
+     class="photo-slot"
+     x="36.000"
+     y="81.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="94.500"
+     id="text20">20</text>
+  <rect
+     id="photo_21"
+     class="photo-slot"
+     x="63.000"
+     y="81.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="94.500"
+     id="text21">21</text>
+  <rect
+     id="photo_22"
+     class="photo-slot"
+     x="90.000"
+     y="81.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="94.500"
+     id="text22">22</text>
+  <rect
+     id="photo_23"
+     class="photo-slot"
+     x="117.000"
+     y="81.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="94.500"
+     id="text23">23</text>
+  <rect
+     id="photo_24"
+     class="photo-slot"
+     x="144.05925"
+     y="81.05925"
+     width="35.7481"
+     height="26.8815" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="94.500"
+     id="text24">24</text>
+  <rect
+     id="text_zone"
+     class="text-zone"
+     x="0.6999234"
+     y="108.01237"
+     width="178.60016"
+     height="23.975279" />
+  <text
+     class="text-label"
+     x="90.000"
+     y="120.000"
+     id="text25">Votre petit mot ici</text>
+  <rect
+     id="photo_25"
+     class="photo-slot"
+     x="0.74334276"
+     y="132.05579"
+     width="35.200878"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="145.500"
+     id="text26">25</text>
+  <rect
+     id="photo_26"
+     class="photo-slot"
+     x="36.000"
+     y="132.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="145.500"
+     id="text27">26</text>
+  <rect
+     id="photo_27"
+     class="photo-slot"
+     x="63.000"
+     y="132.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="145.500"
+     id="text28">27</text>
+  <rect
+     id="photo_28"
+     class="photo-slot"
+     x="90.000"
+     y="132.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="145.500"
+     id="text29">28</text>
+  <rect
+     id="photo_29"
+     class="photo-slot"
+     x="117.000"
+     y="132.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="145.500"
+     id="text30">29</text>
+  <rect
+     id="photo_30"
+     class="photo-slot"
+     x="144.0627"
+     y="132.0627"
+     width="36.295376"
+     height="26.874615" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="145.500"
+     id="text31">30</text>
+  <rect
+     id="photo_31"
+     class="photo-slot"
+     x="0.74334276"
+     y="159.05579"
+     width="35.200878"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="172.500"
+     id="text32">31</text>
+  <rect
+     id="photo_32"
+     class="photo-slot"
+     x="36.000"
+     y="159.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="172.500"
+     id="text33">32</text>
+  <rect
+     id="photo_33"
+     class="photo-slot"
+     x="63.000"
+     y="159.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="172.500"
+     id="text34">33</text>
+  <rect
+     id="photo_34"
+     class="photo-slot"
+     x="90.000"
+     y="159.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="172.500"
+     id="text35">34</text>
+  <rect
+     id="photo_35"
+     class="photo-slot"
+     x="117.000"
+     y="159.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="172.500"
+     id="text36">35</text>
+  <rect
+     id="photo_36"
+     class="photo-slot"
+     x="144.05925"
+     y="159.05925"
+     width="35.7481"
+     height="26.8815" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="172.500"
+     id="text37">36</text>
+  <rect
+     id="photo_37"
+     class="photo-slot"
+     x="0.74334276"
+     y="186.05579"
+     width="35.200878"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="199.500"
+     id="text38">37</text>
+  <rect
+     id="photo_38"
+     class="photo-slot"
+     x="36.000"
+     y="186.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="199.500"
+     id="text39">38</text>
+  <rect
+     id="photo_39"
+     class="photo-slot"
+     x="63.000"
+     y="186.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="199.500"
+     id="text40">39</text>
+  <rect
+     id="photo_40"
+     class="photo-slot"
+     x="90.000"
+     y="186.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="199.500"
+     id="text41">40</text>
+  <rect
+     id="photo_41"
+     class="photo-slot"
+     x="117.000"
+     y="186.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="199.500"
+     id="text42">41</text>
+  <rect
+     id="photo_42"
+     class="photo-slot"
+     x="144.05579"
+     y="186.05579"
+     width="35.200874"
+     height="26.888439" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="199.500"
+     id="text43">42</text>
+  <rect
+     id="photo_43"
+     class="photo-slot"
+     x="1.2940079"
+     y="213.05228"
+     width="34.653709"
+     height="26.895433" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="226.500"
+     id="text44">43</text>
+  <rect
+     id="photo_44"
+     class="photo-slot"
+     x="36.000"
+     y="213.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="49.500"
+     y="226.500"
+     id="text45">44</text>
+  <rect
+     id="photo_45"
+     class="photo-slot"
+     x="63.000"
+     y="213.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="76.500"
+     y="226.500"
+     id="text46">45</text>
+  <rect
+     id="photo_46"
+     class="photo-slot"
+     x="90.000"
+     y="213.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="103.500"
+     y="226.500"
+     id="text47">46</text>
+  <rect
+     id="photo_47"
+     class="photo-slot"
+     x="117.000"
+     y="213.000"
+     width="27.000"
+     height="27.000" />
+  <text
+     class="slot-label"
+     x="130.500"
+     y="226.500"
+     id="text48">47</text>
+  <rect
+     id="photo_48"
+     class="photo-slot"
+     x="144.05925"
+     y="213.05925"
+     width="35.7481"
+     height="26.8815" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="226.500"
+     id="text49">48</text>
+</svg>

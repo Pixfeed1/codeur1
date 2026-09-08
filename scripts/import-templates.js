@@ -18,10 +18,7 @@ const store = require('../src/store');
 const { parseTemplate, sanitizeSvg } = require('../src/templates');
 
 const args = process.argv.slice(2);
-if (!args.length) {
-  console.error('Usage : node scripts/import-templates.js <dossier ou fichiers .svg>');
-  process.exit(1);
-}
+if (!args.length) args.push(path.join(config.ROOT, 'templates')); // gabarits livrés avec l'application
 
 const files = [];
 for (const a of args) {

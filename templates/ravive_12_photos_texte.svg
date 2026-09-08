@@ -1,0 +1,184 @@
+<svg
+   width="180mm"
+   height="240mm"
+   viewBox="0 0 180 240"
+   version="1.1"
+   id="svg13"
+   sodipodi:docname="ravive_12_photos_texte.svg"
+   inkscape:version="1.4.4 (dcaf3e7d, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs13" />
+  
+  <title
+     id="title1">Ravive - gabarit mosaïque 18x24 cm</title>
+  <desc
+     id="desc1">Les rectangles avec id photo_XX sont les emplacements photo. La zone text_zone est réservée au texte.</desc>
+  <style
+     id="style1">
+    .photo-slot { fill:#e8e4de; stroke:#ffffff; stroke-width:0.8; }
+    .slot-label { font-family:Arial,sans-serif; font-size:4px; fill:#8b857d; text-anchor:middle; dominant-baseline:middle; }
+    .text-zone { fill:#f7f1e8; stroke:#b8aa98; stroke-width:0.5; }
+    .text-label { font-family:Georgia,serif; font-size:6px; fill:#6b5140; text-anchor:middle; dominant-baseline:middle; }
+    .safe { fill:none; stroke:#d8cec1; stroke-width:0.3; stroke-dasharray:2 2; }
+  </style>
+  <rect
+     id="photo_01"
+     class="photo-slot"
+     x="-0.20342161"
+     y="0.032376025"
+     width="63.171047"
+     height="53.935249" />
+  <text
+     class="slot-label"
+     x="36.000"
+     y="27.000"
+     id="text1">1</text>
+  <rect
+     id="photo_02"
+     class="photo-slot"
+     x="63.000"
+     y="0.000"
+     width="54.000"
+     height="54.000" />
+  <text
+     class="slot-label"
+     x="90.000"
+     y="27.000"
+     id="text2">2</text>
+  <rect
+     id="photo_03"
+     class="photo-slot"
+     x="117.03238"
+     y="0.032376025"
+     width="63.171047"
+     height="53.935249" />
+  <text
+     class="slot-label"
+     x="144.000"
+     y="27.000"
+     id="text3">3</text>
+  <rect
+     id="photo_04"
+     class="photo-slot"
+     x="0.093501493"
+     y="54.031372"
+     width="62.87513"
+     height="53.93726" />
+  <text
+     class="slot-label"
+     x="36.000"
+     y="81.000"
+     id="text4">4</text>
+  <rect
+     id="photo_05"
+     class="photo-slot"
+     x="63.000"
+     y="54.000"
+     width="54.000"
+     height="54.000" />
+  <text
+     class="slot-label"
+     x="90.000"
+     y="81.000"
+     id="text5">5</text>
+  <rect
+     id="photo_06"
+     class="photo-slot"
+     x="117.03137"
+     y="54.031372"
+     width="62.87513"
+     height="53.93726" />
+  <text
+     class="slot-label"
+     x="144.000"
+     y="81.000"
+     id="text6">6</text>
+  <rect
+     id="text_zone"
+     class="text-zone"
+     x="0.075398013"
+     y="108.01327"
+     width="179.8492"
+     height="23.973467" />
+  <text
+     class="text-label"
+     x="90.000"
+     y="120.000"
+     id="text7">Votre petit mot ici</text>
+  <rect
+     id="photo_07"
+     class="photo-slot"
+     x="0.3904222"
+     y="132.03036"
+     width="62.579216"
+     height="53.939278" />
+  <text
+     class="slot-label"
+     x="36.000"
+     y="159.000"
+     id="text8">7</text>
+  <rect
+     id="photo_08"
+     class="photo-slot"
+     x="63.000"
+     y="132.000"
+     width="54.000"
+     height="54.000" />
+  <text
+     class="slot-label"
+     x="90.000"
+     y="159.000"
+     id="text9">8</text>
+  <rect
+     id="photo_09"
+     class="photo-slot"
+     x="117.03137"
+     y="132.03137"
+     width="62.87513"
+     height="53.93726" />
+  <text
+     class="slot-label"
+     x="144.000"
+     y="159.000"
+     id="text10">9</text>
+  <rect
+     id="photo_10"
+     class="photo-slot"
+     x="0.3904222"
+     y="186.03036"
+     width="62.579216"
+     height="53.939278" />
+  <text
+     class="slot-label"
+     x="36.000"
+     y="213.000"
+     id="text11">10</text>
+  <rect
+     id="photo_11"
+     class="photo-slot"
+     x="63.000"
+     y="186.000"
+     width="54.000"
+     height="54.000" />
+  <text
+     class="slot-label"
+     x="90.000"
+     y="213.000"
+     id="text12">11</text>
+  <rect
+     id="photo_12"
+     class="photo-slot"
+     x="117.03238"
+     y="186.03238"
+     width="63.171047"
+     height="53.935249" />
+  <text
+     class="slot-label"
+     x="144.000"
+     y="213.000"
+     id="text13">12</text>
+</svg>

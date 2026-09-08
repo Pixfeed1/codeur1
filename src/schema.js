@@ -215,4 +215,42 @@ function migrate(db) {
   }
 }
 
-module.exports = { migrate, STATUSES };
+/**
+ * Premier démarrage : importe les gabarits livrés avec l'application
+ * (dossier templates/ du dépôt) si la base n'en contient aucun. Les gabarits
+ * ajoutés ensuite depuis l'administration vivent dans data/templates/.
+ */
+function seedTemplates(db) {
+  const count = db.prepare('SELECT COUNT(*) AS n FROM templates').get().n;
+  if (count > 0) return 0;
+  const fs = require('fs');
+  const path = require('path');
+  const config = require('./config');
+  const { parseTemplate, sanitizeSvg } = require('./templates');
+  const src = path.join(config.ROOT, 'templates');
+  if (!fs.existsSync(src)) return 0;
+  const insert = db.prepare(
+    `INSERT OR IGNORE INTO templates (key, name, file, slot_count, has_text, slots, text_zone, width_mm, height_mm, sort_order)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  );
+  let n = 0;
+  for (const f of fs.readdirSync(src).filter((x) => x.toLowerCase().endsWith('.svg')).sort()) {
+    try {
+      const key = path.basename(f, '.svg').toLowerCase().replace(/[^a-z0-9_-]+/g, '_');
+      const svg = sanitizeSvg(fs.readFileSync(path.join(src, f), 'utf8'));
+      const parsed = parseTemplate(svg);
+      fs.writeFileSync(path.join(config.TEMPLATES_DIR, `${key}.svg`), svg);
+      const m = key.match(/^ravive_(coeur_)?(\d+)_photos(_texte)?/);
+      const name = m ? `${m[1] ? 'Cœur ' : 'Mosaïque '}${m[2]} photos${m[3] ? ' + petit mot' : ''}` : key;
+      insert.run(key, name, `${key}.svg`, parsed.slotCount, parsed.hasText ? 1 : 0, JSON.stringify(parsed.slots),
+        parsed.textZone ? JSON.stringify(parsed.textZone) : null, parsed.widthMm, parsed.heightMm, parsed.slotCount);
+      n++;
+    } catch (err) {
+      console.error(`gabarit ${f} ignoré : ${err.message}`);
+    }
+  }
+  if (n) console.log(`${n} gabarit(s) importé(s) depuis templates/`);
+  return n;
+}
+
+module.exports = { migrate, seedTemplates, STATUSES };

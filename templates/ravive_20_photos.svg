@@ -1,0 +1,268 @@
+<svg
+   width="180mm"
+   height="240mm"
+   viewBox="0 0 180 240"
+   version="1.1"
+   id="svg20"
+   sodipodi:docname="ravive_20_photos.svg"
+   inkscape:version="1.4.4 (dcaf3e7d, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs20" />
+  
+  <title
+     id="title1">Ravive - gabarit mosaïque 18x24 cm</title>
+  <desc
+     id="desc1">Les rectangles avec id photo_XX sont les emplacements photo. La zone text_zone est réservée au texte.</desc>
+  <style
+     id="style1">
+    .photo-slot { fill:#e8e4de; stroke:#ffffff; stroke-width:0.8; }
+    .slot-label { font-family:Arial,sans-serif; font-size:4px; fill:#8b857d; text-anchor:middle; dominant-baseline:middle; }
+    .text-zone { fill:#f7f1e8; stroke:#b8aa98; stroke-width:0.5; }
+    .text-label { font-family:Georgia,serif; font-size:6px; fill:#6b5140; text-anchor:middle; dominant-baseline:middle; }
+    .safe { fill:none; stroke:#d8cec1; stroke-width:0.3; stroke-dasharray:2 2; }
+  </style>
+  <rect
+     id="photo_01"
+     class="photo-slot"
+     x="0.028631642"
+     y="0.73284996"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="30.000"
+     id="text1">1</text>
+  <rect
+     id="photo_02"
+     class="photo-slot"
+     x="45.028633"
+     y="0.73284996"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="67.500"
+     y="30.000"
+     id="text2">2</text>
+  <rect
+     id="photo_03"
+     class="photo-slot"
+     x="90.028633"
+     y="0.73284996"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="112.500"
+     y="30.000"
+     id="text3">3</text>
+  <rect
+     id="photo_04"
+     class="photo-slot"
+     x="135.02863"
+     y="0.73284996"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="30.000"
+     id="text4">4</text>
+  <rect
+     id="photo_05"
+     class="photo-slot"
+     x="0.000"
+     y="52.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="75.000"
+     id="text5">5</text>
+  <rect
+     id="photo_06"
+     class="photo-slot"
+     x="45.000"
+     y="52.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="67.500"
+     y="75.000"
+     id="text6">6</text>
+  <rect
+     id="photo_07"
+     class="photo-slot"
+     x="90.000"
+     y="52.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="112.500"
+     y="75.000"
+     id="text7">7</text>
+  <rect
+     id="photo_08"
+     class="photo-slot"
+     x="135.000"
+     y="52.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="75.000"
+     id="text8">8</text>
+  <rect
+     id="photo_09"
+     class="photo-slot"
+     x="0.000"
+     y="97.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="120.000"
+     id="text9">9</text>
+  <rect
+     id="photo_10"
+     class="photo-slot"
+     x="45.000"
+     y="97.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="67.500"
+     y="120.000"
+     id="text10">10</text>
+  <rect
+     id="photo_11"
+     class="photo-slot"
+     x="90.000"
+     y="97.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="112.500"
+     y="120.000"
+     id="text11">11</text>
+  <rect
+     id="photo_12"
+     class="photo-slot"
+     x="135.000"
+     y="97.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="120.000"
+     id="text12">12</text>
+  <rect
+     id="photo_13"
+     class="photo-slot"
+     x="0.000"
+     y="142.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="165.000"
+     id="text13">13</text>
+  <rect
+     id="photo_14"
+     class="photo-slot"
+     x="45.000"
+     y="142.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="67.500"
+     y="165.000"
+     id="text14">14</text>
+  <rect
+     id="photo_15"
+     class="photo-slot"
+     x="90.000"
+     y="142.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="112.500"
+     y="165.000"
+     id="text15">15</text>
+  <rect
+     id="photo_16"
+     class="photo-slot"
+     x="135.000"
+     y="142.500"
+     width="45.000"
+     height="45.000" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="165.000"
+     id="text16">16</text>
+  <rect
+     id="photo_17"
+     class="photo-slot"
+     x="0.028631642"
+     y="187.52863"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="22.500"
+     y="210.000"
+     id="text17">17</text>
+  <rect
+     id="photo_18"
+     class="photo-slot"
+     x="45.028633"
+     y="187.52863"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="67.500"
+     y="210.000"
+     id="text18">18</text>
+  <rect
+     id="photo_19"
+     class="photo-slot"
+     x="90.028633"
+     y="187.52863"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="112.500"
+     y="210.000"
+     id="text19">19</text>
+  <rect
+     id="photo_20"
+     class="photo-slot"
+     x="135.02863"
+     y="187.52863"
+     width="44.942738"
+     height="51.738518" />
+  <text
+     class="slot-label"
+     x="157.500"
+     y="210.000"
+     id="text20">20</text>
+</svg>

@@ -34,6 +34,7 @@ for (const col of ['photo_file TEXT', 'photo_mime TEXT']) {
 
 // Tables du produit cadres (voir src/schema.js)
 schema.migrate(db);
+schema.seedTemplates(db);
 
 // Alphabet sans caractères ambigus (pas de 0/O, 1/I/L…)
 const CODE_ALPHABET = '23456789ABCDEFGHJKMNPQRSTUVWXYZ';

@@ -1,0 +1,252 @@
+<svg
+   width="180mm"
+   height="240mm"
+   viewBox="0 0 180 240"
+   version="1.1"
+   id="svg22"
+   sodipodi:docname="ravive_coeur_20_photos_sans_contour.svg"
+   inkscape:version="1.4.4 (dcaf3e7d, 2026-05-05)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs22" />
+  
+  <rect
+     width="180"
+     height="240"
+     fill="#ffffff"
+     id="rect1" />
+  <style
+     id="style1">
+    .slot { fill:#f3f1ed; stroke:#d8d3cb; stroke-width:0.65; }
+    .num  { font-family:Arial,Helvetica,sans-serif; font-size:4.5px; fill:#9d978f; text-anchor:middle; dominant-baseline:middle; }
+    .note { font-family:Georgia,'Times New Roman',serif; font-size:7px; fill:#3d342d; text-anchor:middle; }
+  </style>
+  <!--
+    Gabarit coeur Ravive — 20 photos
+    Le coeur est formé uniquement par les 20 emplacements.
+    Il n'y a AUCUN contour global autour du coeur.
+  -->
+  <!-- Rangée 1 -->
+  <path
+     id="p1"
+     class="slot"
+     d="M28 73 C28 60 35 49 47 44 L47 73 Z" />
+  <path
+     id="p2"
+     class="slot"
+     d="M49 43 C58 39 67 39 75 43 L75 73 L49 73 Z" />
+  <path
+     id="p3"
+     class="slot"
+     d="M77 44 C84 47 88 52 90 57 C92 52 96 47 103 44 L103 73 L77 73 Z" />
+  <path
+     id="p4"
+     class="slot"
+     d="M105 43 C113 39 122 39 131 43 L131 73 L105 73 Z" />
+  <path
+     id="p5"
+     class="slot"
+     d="M133 44 C145 49 152 60 152 73 L133 73 Z" />
+  <!-- Rangée 2 -->
+  <path
+     id="p6"
+     class="slot"
+     d="M28 75 L47 75 L47 101 L31 101 C29 94 28 84 28 75 Z" />
+  <rect
+     id="p7"
+     class="slot"
+     x="49"
+     y="75"
+     width="24"
+     height="26" />
+  <rect
+     id="p8"
+     class="slot"
+     x="75"
+     y="75"
+     width="24"
+     height="26" />
+  <rect
+     id="p9"
+     class="slot"
+     x="101"
+     y="75"
+     width="24"
+     height="26" />
+  <path
+     id="p10"
+     class="slot"
+     d="M127 75 L152 75 C152 84 151 94 149 101 L127 101 Z" />
+  <!-- Rangée 3 -->
+  <path
+     id="p11"
+     class="slot"
+     d="M32 103 L57 103 L57 128 L45 128 C40 121 35 112 32 103 Z" />
+  <rect
+     id="p12"
+     class="slot"
+     x="59"
+     y="103"
+     width="23"
+     height="25" />
+  <rect
+     id="p13"
+     class="slot"
+     x="84"
+     y="103"
+     width="23"
+     height="25" />
+  <rect
+     id="p14"
+     class="slot"
+     x="109"
+     y="103"
+     width="23"
+     height="25" />
+  <path
+     id="p15"
+     class="slot"
+     d="M134 103 L148 103 C145 112 140 121 135 128 L134 128 Z" />
+  <!-- Rangée 4 -->
+  <path
+     id="p16"
+     class="slot"
+     d="M47 130 L72 130 L72 150 L61 150 C56 145 51 138 47 130 Z" />
+  <rect
+     id="p17"
+     class="slot"
+     x="74"
+     y="130"
+     width="22"
+     height="20" />
+  <rect
+     id="p18"
+     class="slot"
+     x="98"
+     y="130"
+     width="22"
+     height="20" />
+  <path
+     id="p19"
+     class="slot"
+     d="M122 130 L133 130 C129 138 124 145 119 150 L122 150 Z" />
+  <!-- Pointe -->
+  <path
+     id="p20"
+     class="slot"
+     d="M63 152 L117 152 C109 160 99 169 90 176 C81 169 71 160 63 152 Z" />
+  <!-- Numéros -->
+  <g
+     id="g20">
+    <text
+       class="num"
+       x="38"
+       y="61"
+       id="text1">1</text>
+    <text
+       class="num"
+       x="62"
+       y="57"
+       id="text2">2</text>
+    <text
+       class="num"
+       x="90"
+       y="61"
+       id="text3">3</text>
+    <text
+       class="num"
+       x="118"
+       y="57"
+       id="text4">4</text>
+    <text
+       class="num"
+       x="142"
+       y="61"
+       id="text5">5</text>
+    <text
+       class="num"
+       x="38"
+       y="88"
+       id="text6">6</text>
+    <text
+       class="num"
+       x="61"
+       y="88"
+       id="text7">7</text>
+    <text
+       class="num"
+       x="87"
+       y="88"
+       id="text8">8</text>
+    <text
+       class="num"
+       x="113"
+       y="88"
+       id="text9">9</text>
+    <text
+       class="num"
+       x="140"
+       y="88"
+       id="text10">10</text>
+    <text
+       class="num"
+       x="45"
+       y="115"
+       id="text11">11</text>
+    <text
+       class="num"
+       x="70"
+       y="115"
+       id="text12">12</text>
+    <text
+       class="num"
+       x="95"
+       y="115"
+       id="text13">13</text>
+    <text
+       class="num"
+       x="120"
+       y="115"
+       id="text14">14</text>
+    <text
+       class="num"
+       x="141"
+       y="115"
+       id="text15">15</text>
+    <text
+       class="num"
+       x="60"
+       y="140"
+       id="text16">16</text>
+    <text
+       class="num"
+       x="85"
+       y="140"
+       id="text17">17</text>
+    <text
+       class="num"
+       x="109"
+       y="140"
+       id="text18">18</text>
+    <text
+       class="num"
+       x="127"
+       y="140"
+       id="text19">19</text>
+    <text
+       class="num"
+       x="90"
+       y="160"
+       id="text20">20</text>
+  </g>
+  <!-- Zone de petit mot -->
+  <text
+     class="note"
+     x="90"
+     y="196"
+     id="text21">Votre petit mot ici</text>
+  <!-- Indication technique discrète -->
+</svg>

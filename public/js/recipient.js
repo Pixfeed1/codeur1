@@ -100,7 +100,8 @@
       '<div class="mtaps"><div class="l" id="tl"></div><div class="r" id="tr"></div></div></div>';
   }
   function inner(p, m) {
-    var k = '<div class="mkick">' + esc(kickOf(m)) + '</div>';
+    // La question est mise en avant : grande et centrale ; « Un mot pour toi » reste discret.
+    var k = m.free ? '<div class="mkick">' + esc(kickOf(m)) + '</div>' : '<div class="mkick">Sa réponse à…</div><div class="mq">' + esc(kickOf(m)) + '</div>';
     if (m.kind === 'voice') return k + '<div class="mvoice" id="mv"><button class="pl" id="mplay"><svg width="15" height="17" viewBox="0 0 15 17" fill="currentColor"><path d="M2 2 L13 8.5 L2 15 Z"/></svg></button><div class="w">' + R.bars(22) + '</div><div class="d" id="md">' + R.fmt(m.duration) + '</div></div>';
     if (m.kind === 'photo') return k + '<div class="mphotocap">📷 Une photo rien que pour toi</div>';
     var long = (m.text || '').length > 260;
@@ -210,8 +211,8 @@
     var bars = arr.map(function (_, k) { return '<div class="p"><i' + (k === pi ? ' data-cur' : '') + ' style="width:' + (k < pi ? '100%' : '0') + '"></i></div>'; }).join('');
     var body;
     if (m.kind === 'voice') body = '<div class="msbody">' + inner(p, m) + '</div>';
-    else if (m.kind === 'photo') body = '<div class="msbody"><div class="mkick">' + esc(kickOf(m)) + '</div><div class="mphotocap">📷 La photo laissée par ' + esc(p.name) + '</div></div>';
-    else body = '<div class="msbody top"><div class="mkick">' + esc(kickOf(m)) + '</div><div class="bigtext">“ ' + esc(m.text) + ' ”<div class="sig">— ' + esc(p.name) + '</div></div></div>';
+    else if (m.kind === 'photo') body = '<div class="msbody">' + inner(p, m).replace('Une photo rien que pour toi', 'La photo laissée par ' + esc(p.name)) + '</div>';
+    else body = '<div class="msbody top">' + (m.free ? '<div class="mkick">' + esc(kickOf(m)) + '</div>' : '<div class="mkick">Sa réponse à…</div><div class="mq">' + esc(kickOf(m)) + '</div>') + '<div class="bigtext">“ ' + esc(m.text) + ' ”<div class="sig">— ' + esc(p.name) + '</div></div></div>';
     app.innerHTML = storyShell(p, m, bars, '<button class="mx" id="mx">✕</button>', body, m.kind === 'text');
     document.getElementById('mx').onclick = function () { go('biblio'); };
     document.getElementById('tl').onclick = function () { if (S.pi > 0) { S.pi--; pcard(S.pi); } };

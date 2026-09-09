@@ -17,7 +17,7 @@ Point de situation au 9 septembre 2026, pour reprendre le travail dans une nouve
 - Retours client corrigés : cadrage photo, vocal 60 s, vocaux dans les stories (faux sons dans la démo + lecteur unique déverrouillé), composition organisateur (ordre, défilement conservé, recadrage des photos ajoutées), fenêtre de validation avant scellement, question « tu es… ? » retirée, libellé « lien perdu ».
 - Parcours destinataire refait d'après la maquette v3 du client.
 
-## À faire : finitions incluses (environ 5 h), d'après `Idées ravive.pdf` du client
+## Finitions incluses (faites le 9 septembre), d'après `Idées ravive.pdf` du client
 1. Textes contributeur : kicker « Commençons par toi » (écran prénom), « À toi de jouer 📷 » à la place de « Ajoute une photo de toi ».
 2. Compte à rebours réel sur l'invitation : « 7 jours · 06 h · 24 min », mis à jour chaque minute, capsule et sablier conservés (`public/js/contribute.js`, écran `invite`, champ `deadline` fourni par l'API).
 3. Animations d'accueil (CSS) : titre fondu + translateY 10→0 (400 ms), cœur mini pop une fois, image fondu + scale .96→1 (500 ms), les 3 blocs en cascade (350 ms, décalage 120 ms). Bouton : scale 1→.98→1 au toucher. Transition standard entre écrans contributeur : nouvel écran arrive du bas en fondu (300 ms).
@@ -25,7 +25,7 @@ Point de situation au 9 septembre 2026, pour reprendre le travail dans une nouve
 5. Carte-question : « Une autre question » ne rerend que la carte (ancienne glisse à gauche + fondu, nouvelle arrive de droite), 250-300 ms.
 6. Écran de fin contributeur (« merci ») plus marquant : animation signature discrète.
 7. Reveal destinataire : question plus grande et plus centrale (`.mkick` dans `public/js/recipient.js` et `public/css/ravive.css`).
-Vérifier ensuite avec `npm test` et la recette Playwright (voir scratchpad ou refaire un script court), puis déployer chez le client.
+Toutes faites, testées (captures iPhone 13) et poussées.
 
 ## Avenant proposé au client (600 € HT), à faire seulement s'il accepte
 - 4 univers de questions avec couleurs : Dossiers & délires #F4C95D, Ce qu'on ressent #E98273, Vos souvenirs #82B9D8, Et après ? #A99BD4 (aujourd'hui 5 catégories : dire, souv, dossier, nous, devant, dans `src/schema.js` et l'admin). Couleur sur le titre de catégorie et teinte légère de la carte, fond crème conservé.

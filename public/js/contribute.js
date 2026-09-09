@@ -45,7 +45,7 @@
   function save() {
     try { sessionStorage.setItem(storeKey, JSON.stringify({ id: S.id, token: S.token, name: S.name })); } catch (e) { /* rien */ }
   }
-  function render() { try { SC[S.sc](); } catch (e) { console.error(e); } window.scrollTo(0, 0); }
+  function render(keep) { var y = window.scrollY; try { SC[S.sc](); } catch (e) { console.error(e); } window.scrollTo(0, keep ? y : 0); }
   function go(x) { S.sc = x; render(); }
   function busy(on, label) {
     S.busy = on;
@@ -86,27 +86,44 @@
     }
     var days = ST.daysLeft;
     app.innerHTML = '<div class="view fade"><div class="body" style="padding-top:52px">' +
-      '<div class="brand">Ravive</div><div class="brand-tag">Pour ne rien oublier de nous</div>' +
-      '<h1 class="lede" style="font-size:23px;margin-top:18px">' + R.esc(FROM) + ' prépare une<br>surprise pour ' + R.esc(P) + ' <span class="heart">♥</span></h1>' +
-      (days != null ? '<div class="center-x" style="margin-top:12px"><span class="chip">⏳ ' + (days === 0 ? 'Dernier jour pour participer' : days === 1 ? 'Il te reste 1 jour' : 'Il te reste ' + days + ' jours') + '</span></div>' : '') +
-      '<img class="pubimg" style="margin-top:20px" src="' + (ST.visuals && ST.visuals.contributor_hero || '/img/contributor-hero.jpg') + '" alt="">' +
+      '<div class="brand anim-in">Ravive</div><div class="brand-tag anim-in d1">Pour ne rien oublier de nous</div>' +
+      '<h1 class="lede anim-in d1" style="font-size:23px;margin-top:18px">' + R.esc(FROM) + ' prépare une<br>surprise pour ' + R.esc(P) + ' <span class="heart pop">♥</span></h1>' +
+      (days != null ? '<div class="center-x anim-in d2" style="margin-top:12px"><span class="chip">⏳ <span id="countdown">' + countdownText() + '</span></span></div>' : '') +
+      '<img class="pubimg anim-zoom d3" style="margin-top:20px" src="' + (ST.visuals && ST.visuals.contributor_hero || '/img/contributor-hero.jpg') + '" alt="">' +
       '<div style="margin-top:20px">' +
-        '<div class="how"><div class="n">🎁</div><div><div class="tt">Vous êtes plusieurs, en secret</div><div class="dd">Chacun dépose un petit souvenir pour ' + R.esc(P) + '.</div></div></div>' +
-        '<div class="how"><div class="n">🎙️</div><div><div class="tt">Un mot, une voix, une photo</div><div class="dd">Ce que tu veux lui laisser. En 2 minutes.</div></div></div>' +
-        '<div class="how"><div class="n">✨</div><div><div class="tt">' + pr.El + ' approche son téléphone de son cadre</div><div class="dd">Et tous vos souvenirs prennent vie, réunis rien que pour ' + pr.lui + '.</div></div></div>' +
+        '<div class="how anim-in d4"><div class="n">🎁</div><div><div class="tt">Vous êtes plusieurs, en secret</div><div class="dd">Chacun dépose un petit souvenir pour ' + R.esc(P) + '.</div></div></div>' +
+        '<div class="how anim-in d5"><div class="n">🎙️</div><div><div class="tt">Un mot, une voix, une photo</div><div class="dd">Ce que tu veux lui laisser. En 2 minutes.</div></div></div>' +
+        '<div class="how anim-in d6"><div class="n">✨</div><div><div class="tt">' + pr.El + ' approche son téléphone de son cadre</div><div class="dd">Et tous vos souvenirs prennent vie, réunis rien que pour ' + pr.lui + '.</div></div></div>' +
       '</div>' +
-      '<div class="stack"><button class="btn gold" id="goMoi">Je participe <span class="arrow"></span></button></div>' +
+      '<div class="stack anim-in d7"><button class="btn gold" id="goMoi">Je participe <span class="arrow"></span></button></div>' +
       '</div></div>';
     document.getElementById('goMoi').onclick = function () { go('moi'); };
+    startCountdown();
   };
+  // Compte à rebours réel jusqu'à la fin de collecte (jours · heures · minutes), mis à jour chaque minute
+  var cdTimer = null;
+  function countdownText() {
+    var end = ST.deadline ? new Date(ST.deadline + 'T23:59:59') : null;
+    if (!end || isNaN(end)) return ST.daysLeft === 0 ? 'Dernier jour pour participer' : 'Il te reste ' + ST.daysLeft + ' jour' + (ST.daysLeft > 1 ? 's' : '');
+    var ms = end - Date.now();
+    if (ms <= 0) return 'Dernières heures pour participer';
+    var d = Math.floor(ms / 86400000), h = Math.floor(ms % 86400000 / 3600000), m = Math.floor(ms % 3600000 / 60000);
+    var pad = function (x) { return (x < 10 ? '0' : '') + x; };
+    if (d === 0) return 'Il te reste ' + pad(h) + ' h · ' + pad(m) + ' min';
+    return d + ' jour' + (d > 1 ? 's' : '') + ' · ' + pad(h) + ' h · ' + pad(m) + ' min';
+  }
+  function startCountdown() {
+    clearInterval(cdTimer);
+    cdTimer = setInterval(function () { var el = document.getElementById('countdown'); if (!el) { clearInterval(cdTimer); return; } el.textContent = countdownText(); }, 30000);
+  }
 
   /* ------------------------------------------------- 1b. présentations */
   SC.moi = function () {
     // La question « tu es… ? » (lien avec la personne fêtée) a été retirée à la demande du client.
-    app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">On fait les présentations</span><h1>Et toi,<br>tu es… ?</h1></div>' +
+    app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">Commençons par toi</span><h1>Et toi,<br>tu es… ?</h1></div>' +
       '<div class="body">' +
-        '<div class="selfiewrap"><div class="selfie" id="selfie">' + (S.selfie ? '<img src="' + S.selfie.url + '" alt="">' : '<span class="cam">📷</span>') + '</div>' +
-          '<div class="sfl">' + (S.selfie ? 'Me reprendre' : 'Ajoute une photo de toi') + '</div>' +
+        '<div class="selfiewrap"><div class="selfie' + (S.selfie && S.selfie.fresh ? ' arrive' : '') + '" id="selfie">' + (S.selfie ? '<img src="' + S.selfie.url + '" alt="">' : '<span class="cam pop">📷</span>') + '</div>' +
+          '<div class="sfl">' + (S.selfie ? 'Me reprendre' : 'À toi de jouer 📷') + '</div>' +
           '<div class="sub" style="margin-top:5px">Ton plus beau sourire… ou ta pire grimace.</div></div>' +
         '<div class="field" style="margin-top:18px"><label for="nm">Ton prénom</label><input class="inp" id="nm" value="' + R.esc(S.name) + '" placeholder="Ex. Lucas" maxlength="40" autocomplete="given-name"></div>' +
         '<p class="error"></p>' +
@@ -133,7 +150,7 @@
   fps.onchange = function () {
     var f = fps.files[0]; fps.value = '';
     if (!f) return;
-    R.loadImage(f).then(function (l) { return R.shrink(l.img, 800).then(function (s) { S.selfie = { url: URL.createObjectURL(s.blob), blob: s.blob, sent: false }; render(); }); }).catch(fail);
+    R.loadImage(f).then(function (l) { return R.shrink(l.img, 800).then(function (s) { S.selfie = { url: URL.createObjectURL(s.blob), blob: s.blob, sent: false, fresh: true }; render(); S.selfie.fresh = false; }); }).catch(fail);
   };
 
   /* ---------------------------------------------------------- 2. photo */
@@ -355,7 +372,7 @@
     var answering = S.q.mode !== 'choice';
     var mid;
     if (!answering) {
-      mid = '<div class="qcardbig" id="qc"><div class="bigq">' + R.esc(cur.q) + '</div></div>' +
+      mid = '<div class="qcardbig' + (swap ? ' card-in' : '') + '" id="qc"><div class="bigq">' + R.esc(cur.q) + '</div></div>' +
         '<div class="stack" style="margin-top:20px">' +
           '<button class="btn gold" data-mode="audio">🎙️  Le raconter</button>' +
           '<button class="btn line" data-mode="texte">✍️  L’écrire</button>' +
@@ -365,7 +382,8 @@
     } else {
       mid = '<div class="qbox">' + R.esc(cur.q) + '</div>' + answerArea('q');
     }
-    app.innerHTML = '<div class="view fade"><div class="head compact"><button class="backarr" id="back">‹</button><span class="kicker">' + (cur.ic || '') + ' ' + R.esc(cur.t || '') + '</span></div>' +
+    var swap = S.cardSwap; S.cardSwap = false;
+    app.innerHTML = '<div class="view' + (swap ? '' : ' fade') + '"><div class="head compact"><button class="backarr" id="back">‹</button><span class="kicker">' + (cur.ic || '') + ' ' + R.esc(cur.t || '') + '</span></div>' +
       '<div class="body" style="padding-top:8px">' +
       (!answering ? (n > 0 ? '<div class="center-x" style="margin-bottom:14px"><span class="counter">' + n + ' / ' + MAXQ + '</span></div>' : '<div class="sub" style="margin:-2px 0 14px">Une question t’inspire ? Réponds. Sinon, passe à la suivante.</div>') : '') +
       mid +
@@ -383,7 +401,13 @@
       el.addEventListener('touchend', function (e) { if (x0 == null) return; if (e.changedTouches[0].clientX - x0 < -55) passer(); x0 = null; });
     } else bindAnswerArea('q');
   };
-  function passer() { S.q = freshQ(); S.qptr++; render(); }
+  function passer() {
+    var card = document.getElementById('qc');
+    if (S.passing) return;
+    S.passing = true;
+    if (card) card.classList.add('card-out');
+    setTimeout(function () { S.passing = false; S.q = freshQ(); S.qptr++; S.cardSwap = true; render(true); }, 220);
+  }
   SC.qcont = function () {
     var n = S.answered.length, more = n < MAXQ && S.qptr < S.queue.length;
     app.innerHTML = centered('🤎', 'Souvenir enregistré.', '<span class="counter">' + n + ' / ' + MAXQ + '</span>',
@@ -504,8 +528,11 @@
     }).catch(fail);
   }
   SC.merci = function () {
-    app.innerHTML = centered('🤎', 'Merci d’avoir<br>laissé un peu de toi.',
-      'Ton souvenir fait maintenant partie de la surprise de ' + R.esc(P) + '.<br><br>Plus qu’à garder le secret jusqu’au jour J… 🤫');
+    app.innerHTML = '<div class="view center merci"><div class="seal-anim"><svg viewBox="0 0 120 120" width="120" height="120"><circle class="ring" cx="60" cy="60" r="52" fill="none" stroke="#BE9B5E" stroke-width="2"/><path class="check" d="M38 62 L54 78 L84 46" fill="none" stroke="#C77B5A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+      '<h1 class="lede anim-in d3" style="margin-top:18px">C’est envoyé.</h1>' +
+      '<div class="sub anim-in d4" style="margin-top:12px;max-width:290px">Merci d’avoir laissé un peu de toi. Ton souvenir fait maintenant partie de la surprise de ' + R.esc(P) + '.</div>' +
+      '<div class="sub anim-in d5" style="margin-top:14px">Plus qu’à garder le secret jusqu’au jour J… 🤫</div>' +
+      '<div class="signature anim-in d7">Ravive</div></div>';
   };
 
   /* ------------------------------------------------------ reprise */

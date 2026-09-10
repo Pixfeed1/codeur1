@@ -46,31 +46,63 @@
   }
   function bindPreview() {
     var a = document.getElementById('pvflow');
-    if (a) a.onclick = function (e) { e.preventDefault(); S.flow = S.flow === 'first' ? 'rescan' : 'first'; go(S.flow === 'first' ? 'accueil' : 'retour'); };
+    if (a) a.onclick = function (e) { e.preventDefault(); S.flow = S.flow === 'first' ? 'rescan' : 'first'; go(S.flow === 'first' ? 'scan' : 'retour'); };
   }
 
-  /* ------------------------------------------------------- découverte */
-  SC.accueil = function () {
-    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' + previewChip() +
-      '<div class="rc-logo">Ravive</div><div class="rc-logo-tl">Pour ne rien oublier de nous</div>' +
-      '<div class="rc-orn" style="margin-top:24px"><i></i><span>Rien que pour toi</span><i class="r"></i></div>' +
-      '<h1 class="rc-h1 big">Ils avaient<br>quelque chose<br>à te dire.</h1>' +
-      '<div class="rc-sub">Ceux qui t’aiment ont laissé un mot, une voix, un souvenir.</div>' +
-      '<div class="rc-stack"><button class="btn gold" id="go">Découvrir <span class="arrow"></span></button></div>' +
-      '</div></div>';
-    document.getElementById('go').onclick = function () { go('intro'); };
+  /* ------------------------------------------------------- découverte (maquette v8) */
+  var HALO_POS = [[16, 20, 30], [76, 15, 26], [49, 6, 24], [7, 47, 28], [90, 45, 30], [29, 82, 24], [69, 84, 26], [3, 74, 22], [94, 71, 22], [46, 93, 20]];
+  function motes() {
+    var M = [[12, 16, 15, 2], [80, 22, 19, 8], [30, 12, 13, 5], [63, 18, 17, 11], [46, 14, 14, 15], [88, 10, 12, 3], [6, 20, 18, 9], [70, 12, 16, 13]];
+    return '<div class="motes">' + M.map(function (m) { return '<i style="left:' + m[0] + '%;bottom:-24px;width:' + m[1] + 'px;height:' + m[1] + 'px;animation-duration:' + m[2] + 's;animation-delay:-' + m[3] + 's"></i>'; }).join('') + '</div>';
+  }
+  // Compte à rebours 3-2-1 sur fond sombre, puis l'écran compteur
+  SC.scan = function () {
+    app.innerHTML = '<div class="scanview">' + previewChip() + '<div class="scan-wm">Ravive</div><div class="scan-n" id="scanN"></div><div class="scan-hint">Reçois ce que l’on t’a laissé…</div></div>';
     bindPreview();
+    var el = document.getElementById('scanN'), seq = [3, 2, 1], k = 0;
+    var tick = function () {
+      if (S.sc !== 'scan') return;
+      if (k >= seq.length) { go('intro'); return; }
+      el.innerHTML = '<span class="scan-num">' + seq[k] + '</span>'; k++;
+      S.timer = setTimeout(tick, 780);
+    };
+    tick();
   };
+  SC.accueil = function () { go('scan'); };
 
+  // Le chiffre monte de 0 au nombre de proches, les proches apparaissent autour au fil du compte
+  function animateCount(el, to, dur, onTick) {
+    if (!el) return;
+    if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) { el.textContent = to; onTick(to); return; }
+    var start = performance.now();
+    (function step(now) {
+      var p = Math.min(1, (now - start) / dur), e = 1 - Math.pow(1 - p, 3), v = Math.round(e * to);
+      el.textContent = v; onTick(v);
+      if (p < 1) S.raf = requestAnimationFrame(step); else { el.textContent = to; onTick(to); }
+    })(start);
+  }
   SC.intro = function () {
-    var n = people.length;
-    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' +
-      '<div class="rc-count">' + n + '</div>' +
-      '<h1 class="rc-h1" style="margin-top:14px;font-size:26px">' + (n > 1 ? 'personnes ont' : 'personne a') + '<br>pensé à toi <span class="heart">♥</span></h1>' +
-      '<div class="rc-sub">Prends une minute, rien que pour toi.</div>' +
-      '<div class="rc-stack"><button class="btn" id="go">Découvrir leurs mots <span class="arrow"></span></button></div>' +
+    var n = people.length, chips = people.slice(0, HALO_POS.length);
+    var halo = chips.map(function (p, i) {
+      var pos = HALO_POS[i], th = Math.max(1, Math.round((i + 1) * n / chips.length));
+      var face = p.selfie ? 'background-image:url(\'' + p.selfie + '\');background-size:cover;background-position:center' : 'background:' + grad(p.n);
+      return '<div class="h" data-th="' + th + '" style="left:' + pos[0] + '%;top:' + pos[1] + '%;width:' + pos[2] + 'px;height:' + pos[2] + 'px;margin-left:' + (-pos[2] / 2) + 'px;margin-top:' + (-pos[2] / 2) + 'px">' +
+        '<div class="hf" style="' + face + ';font-size:' + Math.round(pos[2] * 0.42) + 'px;animation-delay:' + (i * 0.35).toFixed(2) + 's">' + (p.selfie ? '' : esc(p.name[0])) + '</div></div>';
+    }).join('');
+    var pr = D.recipientGender === 'm' ? 'Prêt' : D.recipientGender === 'f' ? 'Prête' : 'Prêt·e';
+    app.innerHTML = '<div class="view rc-center soft-in"><div class="rc-glow breath"></div>' + motes() +
+      '<div class="top-wm rv" style="animation-delay:.15s">Ravive</div>' +
+      '<div class="rc-inner">' + previewChip() +
+      '<div class="countwrap"><div class="halo" id="halo">' + halo + '</div><div class="rc-count rv-soft" id="counter" style="animation-delay:.2s">0</div></div>' +
+      '<h1 class="rc-h1 rv" style="margin:8px auto 0;font-size:25px;line-height:1.24;max-width:20ch;animation-delay:.9s">' + (n > 1 ? 'personnes ont' : 'personne a') + ' quelque chose à te dire.</h1>' +
+      '<div class="rc-sub rv" style="animation-delay:1.5s">' + pr + ' à découvrir ce qu’' + (n > 1 ? 'elles' : 'elle') + ' t’' + (n > 1 ? 'ont' : 'a') + ' laissé ?</div>' +
+      '<div class="rc-stack rv" style="animation-delay:2.1s"><button class="btn gold" id="go">Découvrir mes souvenirs <span class="arrow"></span></button></div>' +
       '</div></div>';
     document.getElementById('go').onclick = startReveal;
+    bindPreview();
+    var chipEls = Array.prototype.slice.call(document.querySelectorAll('#halo .h'));
+    var onTick = function (v) { chipEls.forEach(function (c) { if (v >= Number(c.dataset.th)) c.classList.add('show'); }); };
+    S.timer = setTimeout(function () { animateCount(document.getElementById('counter'), n, 1900, onTick); }, 600);
   };
 
   /* ------------------------------------------------------------ reveal */
@@ -93,7 +125,7 @@
   }
   function storyShell(p, m, bars, head, body, top) {
     var bg = m.photo ? 'background-image:url(\'' + m.photo + '\')' : p.photo ? 'background-image:url(\'' + p.photo + '\')' : 'background:' + grad(p.n);
-    return '<div class="mstory"><div class="bg" style="' + bg + '"></div>' + (m.photo || p.photo ? '' : '<div class="mmono">' + esc(p.name[0]) + '</div>') + '<div class="mveil' + (top ? ' top' : '') + '"></div>' +
+    return '<div class="mstory"><div class="bg kb" style="' + bg + '"></div>' + (m.photo || p.photo ? '' : '<div class="mmono float">' + esc(p.name[0]) + '</div>') + '<div class="mveil' + (top ? ' top' : '') + '"></div>' +
       '<div class="mprog">' + bars + '</div>' +
       '<div class="mshead">' + avatar(p) + '<div class="mnm">' + esc(p.name) + '</div>' + head + '</div>' +
       body +
@@ -163,7 +195,7 @@
   }
 
   SC.fin = function () {
-    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' +
+    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div>' + motes() + '<div class="rc-inner">' +
       '<div class="rc-orn"><i></i><span>♥</span><i class="r"></i></div>' +
       '<h1 class="rc-h1">Voilà ce que tu<br>représentes<br>pour <em>eux.</em></h1>' +
       '<div class="rc-sub">Et ce n’est que le début,<br>il te reste encore plein<br>de souvenirs à découvrir.</div>' +
@@ -175,7 +207,7 @@
 
   /* ------------------------------------------------------------ retour */
   SC.retour = function () {
-    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div><div class="rc-inner">' + previewChip() +
+    app.innerHTML = '<div class="view rc-center fade"><div class="rc-glow"></div>' + motes() + '<div class="rc-inner">' + previewChip() +
       '<div class="rc-logo" style="font-size:38px">Ravive</div><div class="rc-logo-tl">Pour ne rien oublier de nous</div>' +
       '<div class="rc-orn"><i></i><span>♥</span><i class="r"></i></div>' +
       '<h1 class="rc-h1 big">Bon retour.</h1>' +
@@ -221,5 +253,5 @@
     else { var f = document.querySelector('.mprog i[data-cur]'); if (f) f.style.width = '100%'; }
   }
 
-  go(S.flow === 'first' ? 'accueil' : 'retour');
+  go(S.flow === 'first' ? 'scan' : 'retour');
 })();

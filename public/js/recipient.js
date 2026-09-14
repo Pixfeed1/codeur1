@@ -109,8 +109,9 @@
   /* ------------------------------------------------------------ reveal */
   function pick(p) {
     if (!p.memories.length) return null;
-    if (S.flow === 'rescan') return p.memories[Math.floor(Math.random() * p.memories.length)];
-    return p.memories.filter(function (m) { return m.inReveal; })[0] || p.memories[0];
+    // Découverte : le souvenir marqué d'une étoile par le proche, sinon un au hasard. Retour : toujours au hasard.
+    var star = S.flow === 'first' ? p.memories.filter(function (m) { return m.star; })[0] : null;
+    return star || p.memories[Math.floor(Math.random() * p.memories.length)];
   }
   function startReveal() {
     S.list = people.map(function (p) { return { p: p, m: pick(p) }; }).filter(function (x) { return x.m; });
@@ -128,7 +129,6 @@
   function avatar(p) {
     return '<div class="mava" style="' + (p.selfie ? 'background-image:url(\'' + p.selfie + '\')' : 'background:' + grad(p.n)) + '">' + (p.selfie ? '' : esc(p.name[0])) + '</div>';
   }
-  var REL = { ami: 'ton ami·e', famille: 'ta famille', amour: 'ton amour', collegue: 'ton·ta collègue' };
   // V1.1 : une story par format (vocal, texte, photo + vocal, photo + texte, photo seule) — rendu partagé RV.storyView
   function itemOf(m) {
     return {
@@ -147,7 +147,7 @@
     S.halo = v.halo;
     return '<div class="mstory ' + v.cls + '" style="' + v.style + '">' + v.html +
       '<div class="mprog">' + bars + '</div>' +
-      '<div class="mshead">' + avatar(p) + '<div class="mhinfo"><span class="n2">' + esc(p.name) + '</span><span class="s2">' + esc(REL[p.relation] || 'pour toi') + '</span></div>' + head + '</div>' +
+      '<div class="mshead">' + avatar(p) + '<div class="mhinfo"><span class="n2">' + esc(p.name) + '</span><span class="s2">pour toi</span></div>' + head + '</div>' +
       '<div class="mtaps"><div class="l" id="tl"></div><div class="r" id="tr"></div></div></div>';
   }
 

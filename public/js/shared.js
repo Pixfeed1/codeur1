@@ -128,6 +128,19 @@ window.RV = (function () {
     };
   }
 
+  /* Micro partagé : demandé dans le clic de l'utilisateur (iOS exige un geste pour la
+     permission), puis gardé ouvert pour les prises suivantes jusqu'à releaseMic(). */
+  var micStream = null;
+  function micLive() { return !!(micStream && micStream.getTracks().some(function (t) { return t.readyState === 'live'; })); }
+  function prepareMic() {
+    if (micLive()) return Promise.resolve(micStream);
+    if (!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia)) return Promise.reject(new Error('unsupported'));
+    return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) { micStream = st; return st; });
+  }
+  function releaseMic() {
+    if (micStream) { try { micStream.getTracks().forEach(function (t) { t.stop(); }); } catch (e) { /* rien */ } }
+    micStream = null;
+  }
   function recorder(opts) {
     var stream = null, rec = null, chunks = [], startedAt = 0, timer = null, stopping = null;
     function pickMime() {
@@ -138,7 +151,7 @@ window.RV = (function () {
     return {
       supported: !!(navigator.mediaDevices && window.MediaRecorder),
       start: function () {
-        return navigator.mediaDevices.getUserMedia({ audio: true }).then(function (st) {
+        return prepareMic().then(function (st) {
           stream = st;
           var mime = pickMime();
           rec = mime ? new MediaRecorder(st, { mimeType: mime }) : new MediaRecorder(st);
@@ -172,8 +185,7 @@ window.RV = (function () {
       cleanup: function () {
         if (timer) clearInterval(timer);
         timer = null;
-        if (stream) stream.getTracks().forEach(function (t) { t.stop(); });
-        stream = null;
+        stream = null; // le micro partagé reste ouvert pour une nouvelle prise ; releaseMic() le ferme
       },
       recording: function () { return !!rec && rec.state === 'recording'; },
     };
@@ -405,6 +417,6 @@ window.RV = (function () {
     return setTimeout(done, reduce ? 300 : (ms || 2300));
   }
 
-  return { esc: esc, fmt: fmt, bars: bars, fmtDate: fmtDate, fmtShort: fmtShort, todayISO: todayISO, addDays: addDays, daysBetween: daysBetween, pron: pron, api: api, loadImage: loadImage, shrink: shrink, cropper: cropper, recorder: recorder, player: player, audioPlayer: audioPlayer,
+  return { esc: esc, fmt: fmt, bars: bars, fmtDate: fmtDate, fmtShort: fmtShort, todayISO: todayISO, addDays: addDays, daysBetween: daysBetween, pron: pron, api: api, loadImage: loadImage, shrink: shrink, cropper: cropper, recorder: recorder, prepareMic: prepareMic, releaseMic: releaseMic, micLive: micLive, player: player, audioPlayer: audioPlayer,
     ravIcon: ravIcon, icons: ICONS, universe: universe, universeVars: universeVars, rgba: rgba, storyView: storyView, bindTextPanel: bindTextPanel, halo: halo, opening: opening };
 })();

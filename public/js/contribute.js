@@ -233,7 +233,7 @@
     }
     if (st.mode === 'photo') {
       if (st.photo && st.photo.pending) {
-        return '<div class="cropper tall" id="cropper"></div><input type="range" class="zoom" id="zoom" min="1" max="4" step="0.01" value="1" style="max-width:236px;display:block;margin:12px auto 0">' +
+        return '<div class="cropper tall" id="cropper" style="' + screenAspect() + '"></div><input type="range" class="zoom" id="zoom" min="1" max="4" step="0.01" value="1" style="max-width:236px;display:block;margin:12px auto 0">' +
           '<div class="stack" style="margin-top:14px"><button class="btn line" id="rotate">↻ Pivoter</button><button class="btn keep" id="cropOk">Ajouter cette photo</button></div>' +
           '<div class="center-x" style="margin-top:10px"><button class="skip" id="rechooseQ">Changer de photo</button></div>';
       }
@@ -263,26 +263,28 @@
     var qtxt = ctx === 'free' ? 'Ton mot pour ' + R.esc(P) : R.esc(S.cur ? S.cur.q : '');
     return '<div class="piece"><img class="pthumb" src="' + st.photo.url + '" style="object-position:50% ' + f + '%" alt=""><div class="pmid"><div class="ptt">Photo</div><div class="pss">En complément</div></div>' +
       '<div class="pacts"><button class="prm" id="changePhoto">Modifier</button><button class="prm" id="removePhoto">Retirer</button></div></div>' +
-      '<div class="prev prevphoto' + (st.overlayDark ? ' odark' : '') + '"><img id="qImg" src="' + st.photo.url + '" style="object-position:50% ' + f + '%" alt=""><div class="qpreview ' + pos + '">' + qtxt + '</div></div>' +
+      '<div class="prev prevphoto' + (st.overlayDark ? ' odark' : '') + '" style="' + screenAspect() + '"><img id="qImg" src="' + st.photo.url + '" style="object-position:50% ' + f + '%" alt=""><div class="qpreview ' + pos + '">' + qtxt + '</div></div>' +
       '<div class="prevcap">Aperçu du cadrage réel dans la story</div>' +
       '<div class="framer"><div class="lbl">Glisse pour cadrer</div><input type="range" id="focus" min="0" max="100" value="' + f + '"></div>' +
       '<div class="qposrow"><span class="lbl">Placer la question :</span><button class="qpos' + (pos === 'top' ? ' on' : '') + '" data-qpos="top">En haut</button><button class="qpos' + (pos === 'bottom' ? ' on' : '') + '" data-qpos="bottom">En bas</button></div>' +
       '<div class="txtcol"><span class="tcl">Texte sur la photo</span><div class="tcbs"><button class="tcb' + (!st.overlayDark ? ' on' : '') + '" data-ov="0">Clair</button><button class="tcb' + (st.overlayDark ? ' on' : '') + '" data-ov="1">Foncé</button></div></div>';
   }
   var qcrop = null;
+  // La photo d'un souvenir est cadrée et prévisualisée au format réel de l'écran, pour que la story montre exactement ce cadrage
+  function screenAspect() { var r = (window.innerWidth || 390) / (window.innerHeight || 844); return 'aspect-ratio:' + Math.max(0.42, Math.min(0.62, r)).toFixed(3); }
   function bindAnswerArea(ctx) {
     var st = holder(ctx);
     var $ = function (id) { return document.getElementById(id); };
     var on = function (id, fn) { var el = $(id); if (el) el.onclick = fn; };
-    on('optAudio', function () { st.mode = 'audio'; render(); });
+    on('optAudio', function () { R.prepareMic().catch(function () {}); st.mode = 'audio'; render(); }); // permission micro dans le clic (iOS)
     on('optText', function () { st.mode = 'texte'; render(); });
     on('pass', passer);
-    on('cancelPiece', function () { stopRec(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); });
+    on('cancelPiece', function () { stopRec(); R.releaseMic(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); });
     on('mic', function () { micTog(ctx); });
     on('commitText', function () { if (!(st.text || '').trim()) { showErr('Écris quelques mots, ou choisis le vocal.'); return; } st.kind = 'text'; st.mode = 'choice'; render(); });
     var ta = $('ta'); if (ta) { ta.oninput = function () { st.text = this.value; $('cc').textContent = this.value.length + ' / ' + MAX_TXT; }; ta.focus(); }
     on('playTog', function () { playTog(ctx); });
-    on('redoAudio', function () { stopPreview(); st.audio = null; st.audioUrl = null; st.duration = 0; st.playing = false; st.mode = 'audio'; render(); });
+    on('redoAudio', function () { stopPreview(); R.prepareMic().catch(function () {}); st.audio = null; st.audioUrl = null; st.duration = 0; st.playing = false; st.mode = 'audio'; render(); });
     on('removeAudio', function () { stopPreview(); st.audio = null; st.audioUrl = null; st.duration = 0; st.playing = false; st.kind = null; render(); });
     on('editText', function () { st.mode = 'texte'; render(); });
     on('removeText', function () { st.text = ''; st.kind = null; render(); });
@@ -311,11 +313,18 @@
     if (!ov) return;
     var k = 3;
     ov.classList.add('on');
-    (function tick() {
-      if (!document.getElementById('cdov')) return;
-      if (k === 0) { ov.classList.remove('on'); if (help) help.textContent = 'On t’écoute… appuie pour arrêter · ' + R.fmt(MAX_S) + ' max'; micTog(ctx); return; }
-      ov.textContent = k; k--; setTimeout(tick, 470);
-    })();
+    ov.textContent = '…';
+    R.prepareMic().then(function () {
+      (function tick() {
+        if (!document.getElementById('cdov')) return;
+        if (k === 0) { ov.classList.remove('on'); if (help) help.textContent = 'On t’écoute… appuie pour arrêter · ' + R.fmt(MAX_S) + ' max'; micTog(ctx); return; }
+        ov.textContent = k; k--; setTimeout(tick, 470);
+      })();
+    }).catch(function () {
+      ov.classList.remove('on');
+      if (help) help.textContent = 'Appuie sur le micro pour autoriser l’enregistrement';
+      showErr('Micro inaccessible. Autorise l’accès au micro (Réglages > Safari > Micro) puis appuie sur le micro.');
+    });
   }
   function stopRec() { if (recObj && recObj.recording()) recObj.stop(); }
   function micTog(ctx) {
@@ -367,8 +376,8 @@
   }
   function commitQPhoto(st) {
     var c = qcrop.getCrop(), sc = st.photo.shrunk.scale;
-    var cv = document.createElement('canvas'); cv.width = 540; cv.height = 960;
-    cv.getContext('2d').drawImage(st.photo.img, c.x / sc, c.y / sc, c.w / sc, c.h / sc, 0, 0, 540, 960);
+    var cv = document.createElement('canvas'); cv.width = 540; cv.height = Math.round(540 * c.h / c.w);
+    cv.getContext('2d').drawImage(st.photo.img, c.x / sc, c.y / sc, c.w / sc, c.h / sc, 0, 0, cv.width, cv.height);
     st.photo = { blob: st.photo.shrunk.blob, crop: c, url: cv.toDataURL('image/jpeg', 0.85), sent: false };
     st.photoFocus = 50; st.questionPos = st.questionPos || 'top';
     st.mode = 'choice'; render();
@@ -384,6 +393,7 @@
     var st = holder(ctx);
     if (!hasContent(st)) return;
     stopPreview();
+    R.releaseMic();
     var isFree = ctx === 'free';
     var meta = isFree ? { free: '1' } : { question: S.cur.q, category: S.cur.cat, questionId: S.cur.id };
     var qs = Object.keys(meta).map(function (k) { return k + '=' + encodeURIComponent(meta[k] == null ? '' : meta[k]); }).join('&');
@@ -463,7 +473,7 @@
       answerArea('free') +
       (editing || hasContent(st) ? '' : '<button class="link" id="ideas">Ou découvre les questions</button>') +
       '</div></div>';
-    document.getElementById('back').onclick = function () { if (st.mode !== 'choice') { stopRec(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); } else if (S.editing) { S.editing = null; go('review'); } else go('photo'); };
+    document.getElementById('back').onclick = function () { if (st.mode !== 'choice') { stopRec(); R.releaseMic(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); } else if (S.editing) { S.editing = null; go('review'); } else go('photo'); };
     var ideas = document.getElementById('ideas'); if (ideas) ideas.onclick = function () { go('qcard'); };
     bindAnswerArea('free');
   };
@@ -501,7 +511,7 @@
       (choosing ? '<div class="center-x" style="margin-top:16px"><button class="skip" id="stop">' + (n > 0 ? 'J’ai fini mon souvenir' : 'Je m’arrête là') + '</button></div>' : '') +
       '</div></div>';
     document.getElementById('back').onclick = function () {
-      if (st.mode !== 'choice') { stopRec(); stopPreview(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); }
+      if (st.mode !== 'choice') { stopRec(); R.releaseMic(); stopPreview(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); }
       else if (hasContent(st)) { if (confirm('Abandonner ce souvenir ?')) { stopPreview(); S.q = freshQ(); render(); } }
       else go(S.free && S.free.done ? 'libre_after' : 'libre');
     };
@@ -656,7 +666,7 @@
     var u = R.universe(S.cur.cat);
     app.innerHTML = '<div class="view fade themed" style="' + R.universeVars(u) + '"><div class="head compact"><button class="backarr" id="back">‹</button><span class="kicker">' + R.esc(S.cur.t || '') + '</span></div>' +
       '<div class="body" style="padding-top:8px"><div class="qbox" style="background:var(--soft);border-color:transparent">' + R.esc(S.cur.q) + '</div>' + answerArea('q') + '</div></div>';
-    document.getElementById('back').onclick = function () { if (S.q.mode !== 'choice') { stopRec(); S.q.mode = 'choice'; if (S.q.photo && S.q.photo.pending) S.q.photo = null; render(); return; } stopPreview(); S.editing = null; S.q = freshQ(); go('review'); };
+    document.getElementById('back').onclick = function () { if (S.q.mode !== 'choice') { stopRec(); R.releaseMic(); S.q.mode = 'choice'; if (S.q.photo && S.q.photo.pending) S.q.photo = null; render(); return; } stopPreview(); S.editing = null; S.q = freshQ(); go('review'); };
     bindAnswerArea('q');
   };
   function sendAll() {

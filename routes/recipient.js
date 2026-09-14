@@ -64,6 +64,7 @@ function memoriesState(project, { preview, base }) {
       overlayDark: !!m.overlay_dark,
       background: m.photo_id ? `${base}/photo/${m.photo_id}/square` : m.main_square ? `${base}/main/${m.contribution_id}` : null,
       inReveal,
+      star: !!(m.star_memory_id && m.id === m.star_memory_id),
       date: m.completed_at,
     };
   });

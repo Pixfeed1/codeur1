@@ -479,7 +479,9 @@ textarea.ta:focus { outline: none; border-color: var(--gold-soft); }
 /* --- stories (aperçu contributeur et destinataire) : 4 formats --- */
 .mstory .mbg { position: absolute; inset: 0; background-size: cover; background-position: center; }
 .mstory.st-photo .mbg, .mstory.st-vp .mbg, .mstory.st-tp .mbg { animation: stPhotoIn 6s ease-out both; }
-@keyframes stPhotoIn { from { transform: scale(1.09); } to { transform: scale(1); } }
+@keyframes stPhotoIn { from { transform: scale(1.04); } to { transform: scale(1); } }
+/* les gestes (glisser, pincer) suffisent sur écran tactile : pas de curseur de zoom */
+@media (pointer: coarse) { .zoom { display: none; } }
 .mstory.st-audio, .mstory.st-text { color: var(--ink); }
 .mstory.st-photo, .mstory.st-vp, .mstory.st-tp { color: #fff; }
 .mstory .mprog .p > i { background: currentColor; opacity: .95; }

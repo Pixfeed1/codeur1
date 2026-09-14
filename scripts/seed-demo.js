@@ -27,10 +27,11 @@ const TEXTS = [
   'Merci pour toutes ces heures à refaire le monde sur ton balcon.',
 ];
 
-async function photo(color, i) {
+async function photo(color, i, tall) {
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="900" height="1200"><rect width="900" height="1200" fill="${color}"/>
     <circle cx="450" cy="480" r="220" fill="#fff" opacity=".55"/><text x="450" y="1000" font-size="140" text-anchor="middle" fill="#fff" font-family="Arial">${i}</text></svg>`;
   const buf = await sharp(Buffer.from(svg)).jpeg({ quality: 85 }).toBuffer();
+  if (tall) return media.processPhoto(buf, { x: 173, y: 0, w: 554, h: 1200 }, { free: true }); // format écran de téléphone (9:19.5)
   return media.processPhoto(buf, { x: 0, y: 150, w: 900, h: 900 });
 }
 
@@ -75,7 +76,7 @@ async function contribute(project, i, kind) {
   const qtext = store.fillQuestion(q.text, project.recipient_name, project.recipient_gender);
   // V1.1 : une photo facultative accompagne un souvenir sur deux (photo + vocal, photo + texte)
   async function withPhoto(memory, focus, pos, dark) {
-    const mp = await photo(COLORS[(i + 5) % COLORS.length], '📷');
+    const mp = await photo(COLORS[(i + 5) % COLORS.length], '📷', true);
     const ph = store.addPhoto(project.id, { contributionId: contribution.id, source: 'contributor', role: 'memory', ...mp });
     store.setMemoryPhoto(memory.id, ph.id);
     store.updateMemoryOptions(memory.id, { photoFocus: focus, questionPos: pos, overlayDark: dark });

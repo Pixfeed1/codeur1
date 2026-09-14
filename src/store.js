@@ -631,6 +631,29 @@ function updateMemoryText(id, text) {
   return getMemory(id);
 }
 
+// V1.1 : photo facultative liée au souvenir. Remplace l'ancienne et retourne
+// celle à effacer du disque (null s'il n'y en avait pas).
+function setMemoryPhoto(id, photoId) {
+  const m = getMemory(id);
+  if (!m) return null;
+  const old = m.photo_id && m.photo_id !== photoId ? getPhoto(m.photo_id) : null;
+  db.prepare('UPDATE memories SET photo_id = ? WHERE id = ?').run(photoId || null, id);
+  if (old) db.prepare('DELETE FROM photos WHERE id = ?').run(old.id);
+  return old;
+}
+function clearMemoryPhoto(id) {
+  return setMemoryPhoto(id, null);
+}
+function updateMemoryOptions(id, { photoFocus, questionPos, overlayDark } = {}) {
+  const m = getMemory(id);
+  if (!m) return null;
+  const focus = photoFocus == null || !Number.isFinite(Number(photoFocus)) ? m.photo_focus : Math.max(0, Math.min(100, Math.round(Number(photoFocus))));
+  const pos = questionPos === 'bottom' || questionPos === 'top' ? questionPos : m.question_pos;
+  const dark = overlayDark == null ? m.overlay_dark : overlayDark ? 1 : 0;
+  db.prepare('UPDATE memories SET photo_focus = ?, question_pos = ?, overlay_dark = ? WHERE id = ?').run(focus, pos, dark, id);
+  return getMemory(id);
+}
+
 // Suppression définitive (parcours contributeur) : retourne les fichiers à effacer
 function deleteMemory(id) {
   const m = getMemory(id);
@@ -893,7 +916,7 @@ module.exports = {
   rotateOrganizerToken, setupProject, updateProjectAdmin, setProjectStatus, addCapacity, markCapacityAlert,
   markReminder, markRevealSeen, resetReveal, listProjects, projectStats, projectsNeedingReminder,
   usedSeats, countDone, createContribution, updateContribution, setStarMemory, getContribution, getContributionByToken, setContributionQuestion,
-  addMemory, getMemory, updateMemoryText, deleteMemory, setMemoryDeleted, listMemories, countMemories, listProjectMemories,
+  addMemory, getMemory, updateMemoryText, setMemoryPhoto, clearMemoryPhoto, updateMemoryOptions, deleteMemory, setMemoryDeleted, listMemories, countMemories, listProjectMemories,
   setContributionVoice, setContributionText, completeContribution, listContributions, softDeleteContribution,
   restoreContribution, purgeDrafts,
   addPhoto, getPhoto, getProjectPhoto, getContributionPhoto, replaceContributionPhoto, listPhotos, softDeletePhoto, hardDeletePhoto,

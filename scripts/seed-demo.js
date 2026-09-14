@@ -73,14 +73,23 @@ async function contribute(project, i, kind) {
   const qs = store.listQuestions(true);
   const q = qs[i % qs.length];
   const qtext = store.fillQuestion(q.text, project.recipient_name, project.recipient_gender);
+  // V1.1 : une photo facultative accompagne un souvenir sur deux (photo + vocal, photo + texte)
+  async function withPhoto(memory, focus, pos, dark) {
+    const mp = await photo(COLORS[(i + 5) % COLORS.length], '📷');
+    const ph = store.addPhoto(project.id, { contributionId: contribution.id, source: 'contributor', role: 'memory', ...mp });
+    store.setMemoryPhoto(memory.id, ph.id);
+    store.updateMemoryOptions(memory.id, { photoFocus: focus, questionPos: pos, overlayDark: dark });
+  }
   if (kind === 'text') {
     store.addMemory(project.id, contribution.id, { kind: 'text', isFree: true, text: TEXTS[i % TEXTS.length] });
     const a = await media.storeAudio(audio(i, 4 + (i % 3)), 'audio/wav', 4 + (i % 3), 60);
-    store.addMemory(project.id, contribution.id, { kind: 'voice', audio: a, questionText: qtext, questionCategory: q.category, questionId: q.id });
+    const m = store.addMemory(project.id, contribution.id, { kind: 'voice', audio: a, questionText: qtext, questionCategory: q.category, questionId: q.id });
+    if (i % 2 === 0) await withPhoto(m, 40, 'top', false);
   } else {
     const a = await media.storeAudio(audio(i, 4 + (i % 3)), 'audio/wav', 4 + (i % 3), 60);
     const star = store.addMemory(project.id, contribution.id, { kind: 'voice', isFree: true, audio: a });
-    store.addMemory(project.id, contribution.id, { kind: 'text', text: TEXTS[(i + 1) % TEXTS.length], questionText: qtext, questionCategory: q.category, questionId: q.id });
+    const m = store.addMemory(project.id, contribution.id, { kind: 'text', text: TEXTS[(i + 1) % TEXTS.length], questionText: qtext, questionCategory: q.category, questionId: q.id });
+    if (i % 2 === 1) await withPhoto(m, 60, 'bottom', i % 4 === 3);
     store.setStarMemory(contribution.id, star.id);
   }
   store.completeContribution(contribution.id);

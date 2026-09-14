@@ -315,7 +315,7 @@
       var d = document.createElement('div');
       d.className = 'contrib' + (c.deletedAt ? ' deleted' : '');
       var mems = c.memories.map(function (m) {
-        var icon = m.kind === 'voice' ? '🎙️' : m.kind === 'text' ? '✍️' : '📸';
+        var icon = (m.kind === 'voice' ? '🎙️' : m.kind === 'text' ? '✍️' : '') + (m.photo ? '📸' : '');
         return '<div class="mem' + (m.deletedAt ? ' deleted' : '') + '" data-mid="' + m.id + '">' +
           '<div class="q">' + icon + ' ' + (m.free ? 'Mot libre' : esc(m.question || '')) + (c.star === m.id ? ' <span class="tag done">★ vu en premier</span>' : '') + (m.deletedAt ? ' <span class="tag sealed">masqué</span>' : '') + '</div>' +
           (m.text ? '<div class="txt">' + esc(m.text) + '</div>' : '') +

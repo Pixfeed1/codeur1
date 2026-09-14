@@ -38,17 +38,27 @@ function id() {
  *        (après orientation). Sans crop : carré centré.
  * @returns {{ file_original, file_square, file_thumb, width, height, crop }}
  */
-async function processPhoto(buffer, crop) {
+async function processPhoto(buffer, crop, { free = false } = {}) {
   const base = id();
   const img = sharp(buffer, { failOn: 'none' }).rotate(); // applique l'orientation EXIF
   const meta = await img.metadata();
   const width = meta.width, height = meta.height;
   if (!width || !height) throw new Error('unreadable_image');
 
-  // Recadrage : borné à l'image, forcé carré
+  // Recadrage : borné à l'image, forcé carré (ou libre pour la photo d'un souvenir :
+  // l'originale devient alors la zone recadrée, le carré et la vignette son centre)
   let c;
   const side = Math.min(width, height);
-  if (crop && Number.isFinite(crop.x) && Number.isFinite(crop.y) && Number.isFinite(crop.w)) {
+  if (free && crop && Number.isFinite(crop.x) && Number.isFinite(crop.y) && Number.isFinite(crop.w) && Number.isFinite(crop.h)) {
+    const w = Math.max(64, Math.min(Math.round(crop.w), width));
+    const hh = Math.max(64, Math.min(Math.round(crop.h), height));
+    c = {
+      left: Math.max(0, Math.min(Math.round(crop.x), width - w)),
+      top: Math.max(0, Math.min(Math.round(crop.y), height - hh)),
+      width: w,
+      height: hh,
+    };
+  } else if (crop && Number.isFinite(crop.x) && Number.isFinite(crop.y) && Number.isFinite(crop.w)) {
     const w = Math.max(64, Math.min(Math.round(crop.w), side));
     c = {
       left: Math.max(0, Math.min(Math.round(crop.x), width - w)),
@@ -67,13 +77,18 @@ async function processPhoto(buffer, crop) {
   };
   const dir = config.PHOTO_DIR;
 
-  await sharp(buffer, { failOn: 'none' })
-    .rotate()
+  const tall = c.width !== c.height;
+  let original = sharp(buffer, { failOn: 'none' }).rotate();
+  if (tall) original = original.extract(c);
+  await original
     .resize({ width: ORIGINAL_MAX, height: ORIGINAL_MAX, fit: 'inside', withoutEnlargement: true })
     .jpeg({ quality: 88, mozjpeg: true })
     .toFile(path.join(dir, files.file_original));
 
-  const square = sharp(buffer, { failOn: 'none' }).rotate().extract(c);
+  const sq = Math.min(c.width, c.height);
+  const square = sharp(buffer, { failOn: 'none' }).rotate().extract(
+    tall ? { left: c.left + Math.round((c.width - sq) / 2), top: c.top + Math.round((c.height - sq) / 2), width: sq, height: sq } : c
+  );
   await square
     .clone()
     .resize(SQUARE_SIZE, SQUARE_SIZE, { fit: 'cover', withoutEnlargement: true })

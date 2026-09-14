@@ -4,7 +4,7 @@ Point de situation au 14 septembre 2026, pour reprendre le travail dans une nouv
 
 ## Contexte
 - Client : Ravive (Emilien / Clara Grange), via Codeur. Devis 3 900 € HT en 3 lots, tous réglés (lot 3 viré le 14 septembre, mise en production datée du 14 septembre). Support gratuit (bugs, corrections sur l'existant) jusqu'au 25 octobre 2026.
-- V1.1 proposée au client le 13 septembre (1 400 € HT, devis à envoyer, 50 % à la commande) : voir `docs/V1.1.md`. Ne rien coder avant l'acompte.
+- V1.1 proposée au client le 13 septembre (1 400 € HT, devis à envoyer, 50 % à la commande) : voir `docs/V1.1.md`. Code terminé et poussé le 14 septembre (branche à jour) ; à déployer chez le client (`git pull` + restart, migration automatique) une fois l'acompte reçu, puis `seed-demo.js --reset` pour que la démo montre des souvenirs avec photo.
 - Branche de travail : `claude/ravive-project-quote-5cmhkv` (ne pas pousser ailleurs sans accord). Tout est commité et poussé.
 - Serveur du client : `ssh root@ravive-moi.fr`, appli dans `/home/ravive/ravive-app`, service systemd `ravive`, logs dans `app.log` (pas journalctl).
   Mise à jour : `cd /home/ravive/ravive-app && sudo -u ravive git pull -q && systemctl restart ravive`

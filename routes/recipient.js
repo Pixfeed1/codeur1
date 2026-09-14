@@ -58,6 +58,10 @@ function memoriesState(project, { preview, base }) {
       audio: m.kind === 'voice' ? `${base}/audio/${m.id}` : null,
       duration: m.audio_duration_s,
       photo: m.photo_id ? `${base}/photo/${m.photo_id}/square` : null,
+      photoFull: m.photo_id ? `${base}/photo/${m.photo_id}/full` : null,
+      photoFocus: m.photo_focus == null ? 50 : m.photo_focus,
+      questionPos: m.question_pos || 'top',
+      overlayDark: !!m.overlay_dark,
       background: m.photo_id ? `${base}/photo/${m.photo_id}/square` : m.main_square ? `${base}/main/${m.contribution_id}` : null,
       inReveal,
       date: m.completed_at,
@@ -137,7 +141,8 @@ function mountMedia(prefix, loader) {
   router.get(`${prefix}/photo/:id/:size`, loader, (req, res) => {
     const ph = store.getProjectPhoto(req.project.id, Number(req.params.id));
     if (!ph || ph.deleted_at) return res.status(404).json({ error: 'not_found' });
-    h.sendPhotoFile(res, req.params.size === 'thumb' ? ph.file_thumb : ph.file_square);
+    const size = req.params.size;
+    h.sendPhotoFile(res, size === 'thumb' ? ph.file_thumb : size === 'full' ? ph.file_original : ph.file_square);
   });
 
   router.get(`${prefix}/audio/:mid`, loader, (req, res) => {

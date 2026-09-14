@@ -1,6 +1,6 @@
 'use strict';
 
-/* ravive — parcours destinataire (maquette « destinataire v3 »).
+/* ravive — parcours destinataire (maquettes v3, v8 puis finales V1.1).
    Découverte : accueil → compteur → reveal (un souvenir par proche) → fin → « Leurs mots ».
    Retour     : bon retour → reveal aléatoire (un souvenir par proche) → « Leurs mots ».
    Même expérience en mode aperçu (organisateur / admin), sans consommer le reveal. */
@@ -33,6 +33,7 @@
 
   function stopAll() {
     if (typeof player !== 'undefined') player.stop();
+    if (typeof stopHalo !== 'undefined' && stopHalo) { stopHalo(); stopHalo = null; }
     if (S.timer) { clearTimeout(S.timer); S.timer = null; }
     if (S.raf) { cancelAnimationFrame(S.raf); S.raf = null; }
   }
@@ -115,50 +116,60 @@
     S.list = people.map(function (p) { return { p: p, m: pick(p) }; }).filter(function (x) { return x.m; });
     if (!S.list.length) { go('biblio'); return; }
     S.i = 0;
+    S.openSig = S.flow === 'first';
     go('reveal');
   }
-  SC.reveal = function () { card(S.i); };
+  SC.reveal = function () {
+    if (S.openSig) { S.openSig = false; S.timer = R.opening(app, 'Un souvenir pour ' + (D.recipientName || 'toi'), function () { if (S.sc === 'reveal') card(0); }); return; }
+    card(S.i);
+  };
 
   function kickOf(m) { return m.free ? 'Un mot pour toi' : (m.question || (CATS[m.category] ? CATS[m.category].title : 'Un souvenir')); }
   function avatar(p) {
     return '<div class="mava" style="' + (p.selfie ? 'background-image:url(\'' + p.selfie + '\')' : 'background:' + grad(p.n)) + '">' + (p.selfie ? '' : esc(p.name[0])) + '</div>';
   }
-  function storyShell(p, m, bars, head, body, top) {
-    var bg = m.photo ? 'background-image:url(\'' + m.photo + '\')' : p.photo ? 'background-image:url(\'' + p.photo + '\')' : 'background:' + grad(p.n);
-    return '<div class="mstory"><div class="bg kb" style="' + bg + '"></div>' + (m.photo || p.photo ? '' : '<div class="mmono float">' + esc(p.name[0]) + '</div>') + '<div class="mveil' + (top ? ' top' : '') + '"></div>' +
-      '<div class="mprog">' + bars + '</div>' +
-      '<div class="mshead">' + avatar(p) + '<div class="mnm">' + esc(p.name) + '</div>' + head + '</div>' +
-      body +
-      '<div class="mtaps"><div class="l" id="tl"></div><div class="r" id="tr"></div></div></div>';
+  var REL = { ami: 'ton ami·e', famille: 'ta famille', amour: 'ton amour', collegue: 'ton·ta collègue' };
+  // V1.1 : une story par format (vocal, texte, photo + vocal, photo + texte, photo seule) — rendu partagé RV.storyView
+  function itemOf(m) {
+    return {
+      hasAudio: m.kind === 'voice', hasText: m.kind === 'text' && !!(m.text || '').trim(), hasPhoto: !!m.photo,
+      text: m.text, duration: m.duration, photoFull: m.photoFull || m.photo, photoFocus: m.photoFocus, questionPos: m.questionPos, overlayDark: m.overlayDark,
+      category: m.category, free: m.free, question: m.free ? '' : (m.question || ''),
+    };
   }
-  function inner(p, m) {
-    // La question est mise en avant : grande et centrale ; « Un mot pour toi » reste discret.
-    var k = m.free ? '<div class="mkick">' + esc(kickOf(m)) + '</div>' : '<div class="mkick">Sa réponse à…</div><div class="mq">' + esc(kickOf(m)) + '</div>';
-    if (m.kind === 'voice') return k + '<div class="mvoice" id="mv"><button class="pl" id="mplay"><svg width="15" height="17" viewBox="0 0 15 17" fill="currentColor"><path d="M2 2 L13 8.5 L2 15 Z"/></svg></button><div class="w">' + R.bars(22) + '</div><div class="d" id="md">' + R.fmt(m.duration) + '</div></div>';
-    if (m.kind === 'photo') return k + '<div class="mphotocap">📷 Une photo rien que pour toi</div>';
-    var long = (m.text || '').length > 260;
-    return k + '<div class="mnote' + (long ? ' long' : '') + '"><span class="quote">“</span>' + esc(m.text) + '<div class="sig">— ' + esc(p.name) + '</div></div>';
+  function storyShell(p, m, bars, head) {
+    var v = R.storyView(itemOf(m), {
+      kickVoice: m.free ? 'Un mot pour toi' : (m.photo ? 'Un souvenir pour toi' : 'Sa réponse à…'),
+      kickText: m.free ? 'Un mot pour toi' : 'Sa réponse à…',
+      kickPhoto: m.free ? 'Une photo pour toi' : 'Ton souvenir en image',
+      signature: p.name,
+    });
+    S.halo = v.halo;
+    return '<div class="mstory ' + v.cls + '" style="' + v.style + '">' + v.html +
+      '<div class="mprog">' + bars + '</div>' +
+      '<div class="mshead">' + avatar(p) + '<div class="mhinfo"><span class="n2">' + esc(p.name) + '</span><span class="s2">' + esc(REL[p.relation] || 'pour toi') + '</span></div>' + head + '</div>' +
+      '<div class="mtaps"><div class="l" id="tl"></div><div class="r" id="tr"></div></div></div>';
   }
 
   // Lecteur unique (déverrouillé au premier geste, voir RV.audioPlayer) : les vocaux
-  // s'enchaînent automatiquement, même sur iOS.
+  // s'enchaînent automatiquement, même sur iOS. Le halo suit le niveau sonore réel.
   var player = R.audioPlayer();
+  var stopHalo = null;
   function playVoice(m, done) {
-    var mv = document.getElementById('mv'), mp = document.getElementById('mplay'), fill = document.querySelector('.mprog i[data-cur]');
-    if (!mp) return;
-    var dur = function () { return m.duration || player.el.duration || 0; };
-    var start = function () {
-      if (player.playing() && player.el.src.indexOf(m.audio) >= 0) { player.pause(); mv.classList.remove('on'); return; }
-      player.play(m.audio, {
-        onended: function () { mv.classList.remove('on'); if (fill) fill.style.width = '100%'; if (done) S.timer = setTimeout(done, 900); },
-        ontimeupdate: function () {
-          var d = document.getElementById('md'); if (d) d.textContent = R.fmt(player.el.currentTime) + ' / ' + R.fmt(dur());
-          if (fill && dur()) fill.style.width = Math.min(100, player.el.currentTime / dur() * 100) + '%';
-        },
-      }).then(function () { mv.classList.add('on'); }).catch(function () { mv.classList.remove('on'); /* lecture bloquée : le bouton lecture reste disponible */ });
+    var btn = document.getElementById('mpauseBtn'), fill = document.querySelector('.mprog i[data-cur]');
+    var paused = false;
+    var dur = function () { return m.duration || player.el.duration || 1; };
+    player.play(m.audio, {
+      onended: function () { if (fill) fill.style.width = '100%'; if (btn) btn.innerHTML = R.icons.play; if (done) S.timer = setTimeout(done, 900); },
+      ontimeupdate: function () { if (fill) fill.style.width = Math.min(100, player.el.currentTime / dur() * 100) + '%'; },
+    }).catch(function () { paused = true; if (btn) btn.innerHTML = R.icons.play; /* lecture bloquée : le bouton reste disponible */ });
+    if (stopHalo) stopHalo();
+    stopHalo = R.halo(function () { return player.level(); }, function () { return player.el.currentTime || 0; }, dur, function () { return paused || player.el.paused; });
+    if (btn) btn.onclick = function (e) {
+      e.stopPropagation();
+      if (player.el.paused) { paused = false; player.el.play().catch(function () {}); btn.innerHTML = R.icons.pause; }
+      else { paused = true; player.pause(); btn.innerHTML = R.icons.play; }
     };
-    mp.onclick = function (e) { e.stopPropagation(); start(); };
-    start();
   }
   // Barre de progression animée puis passage automatique (texte, photo).
   function autoAdvance(ms, done) {
@@ -173,6 +184,7 @@
   }
   function durationFor(m) {
     if (m.kind === 'photo') return 5000;
+    if (m.photo) return 9000; // photo + texte : le temps d'ouvrir le message
     return Math.min(30000, Math.max(4500, 3000 + (m.text || '').length * 45));
   }
 
@@ -180,11 +192,12 @@
     stopAll();
     var it = S.list[i], p = it.p, m = it.m;
     var bars = S.list.map(function (_, k) { return '<div class="p"><i' + (k === i ? ' data-cur' : '') + ' style="width:' + (k < i ? '100%' : '0') + '"></i></div>'; }).join('');
-    var head = S.flow === 'rescan' ? '<button class="skipst" id="mx">Passer ›</button>' : '<button class="mx" id="mx">✕</button>';
-    app.innerHTML = storyShell(p, m, bars, head, '<div class="msbody fade">' + inner(p, m) + '</div>');
+    var head = S.flow === 'rescan' ? '<button class="skipst" id="mx">Passer ›</button>' : '<button class="mx" id="mx">' + R.icons.x + '</button>';
+    app.innerHTML = storyShell(p, m, bars, head);
     document.getElementById('mx').onclick = function () { S.flow === 'rescan' ? go('biblio') : finish(); };
     document.getElementById('tl').onclick = function () { if (S.i > 0) { S.i--; card(S.i); } else card(0); };
     document.getElementById('tr').onclick = next;
+    R.bindTextPanel();
     if (m.kind === 'voice') playVoice(m, next); else autoAdvance(durationFor(m), next);
   }
   function next() { if (S.i < S.list.length - 1) { S.i++; card(S.i); } else if (S.flow === 'rescan') go('biblio'); else finish(); }
@@ -241,14 +254,11 @@
     stopAll();
     var p = S.person, arr = p.memories, m = arr[pi];
     var bars = arr.map(function (_, k) { return '<div class="p"><i' + (k === pi ? ' data-cur' : '') + ' style="width:' + (k < pi ? '100%' : '0') + '"></i></div>'; }).join('');
-    var body;
-    if (m.kind === 'voice') body = '<div class="msbody">' + inner(p, m) + '</div>';
-    else if (m.kind === 'photo') body = '<div class="msbody">' + inner(p, m).replace('Une photo rien que pour toi', 'La photo laissée par ' + esc(p.name)) + '</div>';
-    else body = '<div class="msbody top">' + (m.free ? '<div class="mkick">' + esc(kickOf(m)) + '</div>' : '<div class="mkick">Sa réponse à…</div><div class="mq">' + esc(kickOf(m)) + '</div>') + '<div class="bigtext">“ ' + esc(m.text) + ' ”<div class="sig">— ' + esc(p.name) + '</div></div></div>';
-    app.innerHTML = storyShell(p, m, bars, '<button class="mx" id="mx">✕</button>', body, m.kind === 'text');
+    app.innerHTML = storyShell(p, m, bars, '<button class="mx" id="mx">' + R.icons.x + '</button>');
     document.getElementById('mx').onclick = function () { go('biblio'); };
     document.getElementById('tl').onclick = function () { if (S.pi > 0) { S.pi--; pcard(S.pi); } };
     document.getElementById('tr').onclick = function () { if (S.pi < arr.length - 1) { S.pi++; pcard(S.pi); } else go('biblio'); };
+    R.bindTextPanel();
     if (m.kind === 'voice') playVoice(m, null);
     else { var f = document.querySelector('.mprog i[data-cur]'); if (f) f.style.width = '100%'; }
   }

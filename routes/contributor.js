@@ -82,6 +82,10 @@ function memoryView(m, slug, id, token) {
     duration: m.audio_duration_s,
     audio: m.audio_file ? `/api/p/${slug}/contributions/${id}/memories/${m.id}/audio?t=${token}` : null,
     photo: m.photo_id ? `/api/p/${slug}/contributions/${id}/photos/${m.photo_id}?t=${token}` : null,
+    photoFull: m.photo_id ? `/api/p/${slug}/contributions/${id}/photos/${m.photo_id}?t=${token}&size=full` : null,
+    photoFocus: m.photo_focus == null ? 50 : m.photo_focus,
+    questionPos: m.question_pos || 'top',
+    overlayDark: !!m.overlay_dark,
   };
 }
 
@@ -160,7 +164,8 @@ function loadByQueryToken(req, res, next) {
 router.get('/api/p/:slug/contributions/:id/photos/:pid', loadProject, loadByQueryToken, (req, res) => {
   const ph = store.getPhoto(Number(req.params.pid));
   if (!ph || ph.contribution_id !== req.contribution.id) return res.status(404).json({ error: 'not_found' });
-  h.sendPhotoFile(res, ph.file_square, 'private, no-store');
+  const size = String(req.query.size || '');
+  h.sendPhotoFile(res, size === 'full' ? ph.file_original : size === 'thumb' ? ph.file_thumb : ph.file_square, 'private, no-store');
 });
 router.get('/api/p/:slug/contributions/:id/memories/:mid/audio', loadProject, loadByQueryToken, (req, res) => {
   const m = store.getMemory(Number(req.params.mid));
@@ -227,15 +232,49 @@ router.post('/api/p/:slug/contributions/:id/memories/photo', loadProject, loadCo
   }
 });
 
+// V1.1 : photo facultative liée à un souvenir (vocal ou écrit). Recadrage libre
+// (portrait) via X-Crop ; ?focus= position verticale d'affichage (0-100).
+router.post('/api/p/:slug/contributions/:id/memories/:mid/photo', loadProject, loadContribution, h.rawImage(), async (req, res) => {
+  const m = store.getMemory(Number(req.params.mid));
+  if (!m || m.contribution_id !== req.contribution.id) return res.status(404).json({ error: 'not_found' });
+  if (!h.IMAGE_MIMES.has(h.contentType(req))) return res.status(415).json({ error: 'unsupported_format' });
+  if (!Buffer.isBuffer(req.body) || req.body.length < 100) return res.status(400).json({ error: 'empty_photo' });
+  try {
+    const result = await media.processPhoto(req.body, h.parseCropHeader(req), { free: true });
+    const photo = store.addPhoto(req.project.id, { contributionId: req.contribution.id, source: 'contributor', role: 'memory', ...result });
+    const old = store.setMemoryPhoto(m.id, photo.id);
+    if (old) media.deletePhotoFiles(old);
+    if (req.query.focus !== undefined) store.updateMemoryOptions(m.id, { photoFocus: req.query.focus });
+    res.status(201).json(memoryView(store.getMemory(m.id), req.project.slug, req.contribution.id, h.bearer(req)));
+  } catch (err) {
+    console.error('photo de souvenir :', err.message);
+    res.status(422).json({ error: 'unreadable_image' });
+  }
+});
+router.delete('/api/p/:slug/contributions/:id/memories/:mid/photo', loadProject, loadContribution, (req, res) => {
+  const m = store.getMemory(Number(req.params.mid));
+  if (!m || m.contribution_id !== req.contribution.id) return res.status(404).json({ error: 'not_found' });
+  if (m.kind === 'photo') return res.status(409).json({ error: 'photo_is_content' }); // ancien format : supprimer le souvenir
+  const old = store.clearMemoryPhoto(m.id);
+  if (old) media.deletePhotoFiles(old);
+  res.json(memoryView(store.getMemory(m.id), req.project.slug, req.contribution.id, h.bearer(req)));
+});
+
+// Modification : texte (remplace un vocal le cas échéant) et/ou options d'affichage de la photo
 router.put('/api/p/:slug/contributions/:id/memories/:mid', loadProject, loadContribution, express.json({ limit: '16kb' }), (req, res) => {
   const m = store.getMemory(Number(req.params.mid));
   if (!m || m.contribution_id !== req.contribution.id) return res.status(404).json({ error: 'not_found' });
-  const max = Number(store.getSetting('max_text_chars', 1000));
-  const text = String((req.body && req.body.text) || '').replace(/\r\n/g, '\n').trim();
-  if (text.length < 1) return res.status(400).json({ error: 'text_required' });
-  if (text.length > max) return res.status(400).json({ error: 'text_too_long', max });
-  if (m.audio_file) media.deleteAudioFile(m.audio_file);
-  res.json(memoryView(store.updateMemoryText(m.id, text), req.project.slug, req.contribution.id, h.bearer(req)));
+  const b = req.body || {};
+  if (b.text !== undefined) {
+    const max = Number(store.getSetting('max_text_chars', 1000));
+    const text = String(b.text || '').replace(/\r\n/g, '\n').trim();
+    if (text.length < 1) return res.status(400).json({ error: 'text_required' });
+    if (text.length > max) return res.status(400).json({ error: 'text_too_long', max });
+    if (m.audio_file) media.deleteAudioFile(m.audio_file);
+    store.updateMemoryText(m.id, text);
+  }
+  if (b.photoFocus !== undefined || b.questionPos !== undefined || b.overlayDark !== undefined) store.updateMemoryOptions(m.id, b);
+  res.json(memoryView(store.getMemory(m.id), req.project.slug, req.contribution.id, h.bearer(req)));
 });
 
 router.delete('/api/p/:slug/contributions/:id/memories/:mid', loadProject, loadContribution, (req, res) => {

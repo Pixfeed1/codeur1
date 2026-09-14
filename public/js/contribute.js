@@ -1,6 +1,6 @@
 'use strict';
 
-/* ravive — parcours contributeur (maquette v5), branché sur l'API /api/p/:slug */
+/* ravive — parcours contributeur (maquettes v5 puis finales V1.1), branché sur l'API /api/p/:slug */
 
 (function () {
   var R = window.RV;
@@ -30,8 +30,8 @@
       free: null,              // { mode, text, audio(blob|null), duration, memoryId, playing }
       queue: [], qptr: 0, cur: null,
       answered: [],            // souvenirs enregistrés : { memoryId, q, ic, t, mode, text, duration, photoUrl, audioUrl }
-      q: { mode: 'choice', text: '', audio: null, duration: 0, photo: null },
-      editing: null, starId: null, mpi: 0, busy: false,
+      q: freshQ(),
+      editing: null, starId: null, mpi: 0, busy: false, pickFor: 'q', openSig: false, timer: null,
     };
   }
   reset();
@@ -46,7 +46,7 @@
     try { sessionStorage.setItem(storeKey, JSON.stringify({ id: S.id, token: S.token, name: S.name })); } catch (e) { /* rien */ }
   }
   function render(keep) { var y = window.scrollY; try { SC[S.sc](); } catch (e) { console.error(e); } window.scrollTo(0, keep ? y : 0); }
-  function go(x) { S.sc = x; render(); }
+  function go(x) { if (S.timer) { clearTimeout(S.timer); S.timer = null; } S.sc = x; render(); }
   function busy(on, label) {
     S.busy = on;
     var b = app.querySelector('[data-busy]');
@@ -203,121 +203,227 @@
       }).catch(fail);
   }
 
-  /* ----------------------------------------------- zone de réponse */
+  /* ------------------------------------------------ zone de réponse (V1.1)
+     Un souvenir = une voix OU un texte, plus une photo facultative liée au souvenir.
+     Le contributeur pose d'abord sa voix ou ses mots (« pièce »), puis peut ajouter
+     une photo (recadrage portrait, position de la question, texte clair ou foncé). */
   var recObj = null;
+  var ICON_MIC = R.ravIcon('mic', 'var(--vivid)', '#F6EEDF');
+  var ICON_MIC_ON = R.ravIcon('mic', '#F6EEDF', 'var(--vivid)');
+  var ICON_PEN = R.ravIcon('pen', 'var(--vivid)', '#F6EEDF');
+  var ICON_CAM = R.ravIcon('cam', 'var(--vivid)', '#F6EEDF');
+  function holder(ctx) { return ctx === 'free' ? S.free : S.q; }
+  function hasContent(st) { return !!(st.audio || st.audioUrl || (st.kind === 'text' && (st.text || '').trim()) || (st.mode === 'texte' && (st.text || '').trim())); }
+  function hasVoice(st) { return !!(st.audio || (st.audioUrl && st.kind === 'voice')); }
+  function hasText(st) { return !hasVoice(st) && !!(st.text || '').trim(); }
+  function opt(cls, icon, title, sub, id) {
+    return '<button class="opt ' + cls + '" id="' + id + '"><span class="oi">' + icon + '</span><span class="otx"><span class="ot">' + title + '</span><span class="os">' + sub + '</span></span></button>';
+  }
   function answerArea(ctx) {
-    var st = ctx === 'free' ? S.free : S.q;
-    if (st.mode === 'choice') {
-      return '<button class="choice" data-mode="audio"><span class="em">🎙️</span><span>Laisser un vocal</span></button>' +
-        '<button class="choice" data-mode="texte"><span class="em">✍️</span><span>' + (ctx === 'free' ? 'Écrire mon message' : 'Répondre par écrit') + '</span></button>';
-    }
+    var st = holder(ctx);
     if (st.mode === 'audio') {
-      if (st.audio) {
-        return '<div class="player"><button class="pbtn" id="playTog">' + (st.playing ? '❚❚' : '▶') + '</button><div class="wave' + (st.playing ? ' on' : '') + '">' + R.bars() + '</div><div class="pt" id="pt">' + R.fmt(st.duration) + '</div></div>' +
-          '<div class="prow"><button class="soft" id="resetAudio">↻ Je recommence</button></div>' +
-          '<p class="error"></p><button class="btn gold keep" id="keep" data-busy="Ça me va">Ça me va</button>';
-      }
-      return '<div class="recorder"><button class="mic" id="mic">🎙️</button><div class="wave" id="wave">' + R.bars() + '</div><div class="rectime" id="rt">0:00</div>' +
-        '<div class="sub" style="margin-top:6px">Appuie pour parler, appuie encore pour arrêter · ' + R.fmt(MAX_S) + ' max</div></div><p class="error"></p>';
+      return '<div class="recorder"><div class="cdov" id="cdov"></div><button class="mic" id="mic">' + ICON_MIC_ON + '</button><div class="wave" id="wave">' + R.bars() + '</div><div class="rectime" id="rt">0:00</div>' +
+        '<div class="sub" id="rechelp" style="margin-top:6px">Prépare-toi…</div></div><p class="error"></p>' +
+        '<div class="center-x" style="margin-top:12px"><button class="skip" id="cancelPiece">Annuler</button></div>';
+    }
+    if (st.mode === 'texte') {
+      return '<textarea class="ta" id="ta" placeholder="Écris ce que tu ressens…" maxlength="' + MAX_TXT + '">' + R.esc(st.text || '') + '</textarea><div class="charcount" id="cc">' + (st.text || '').length + ' / ' + MAX_TXT + '</div>' +
+        '<p class="error"></p><button class="btn keep" id="commitText" data-busy="Continuer">Continuer</button>' +
+        '<div class="center-x" style="margin-top:12px"><button class="skip" id="cancelPiece">Annuler</button></div>';
     }
     if (st.mode === 'photo') {
-      if (st.photo) return '<div class="prev"><img src="' + st.photo.url + '" alt=""><button class="re" id="clearQPhoto">Changer</button></div><p class="error"></p><button class="btn gold keep" id="keep" data-busy="Ça me va">Ça me va</button>';
-      return '<div class="drop" id="pickQPhoto"><div class="ic">📸</div><div class="tt">Choisir une photo</div><div class="sub" style="margin-top:4px">Celle qui répond le mieux</div></div>';
+      if (st.photo && st.photo.pending) {
+        return '<div class="cropper tall" id="cropper"></div><input type="range" class="zoom" id="zoom" min="1" max="4" step="0.01" value="1" style="max-width:236px;display:block;margin:12px auto 0">' +
+          '<div class="stack" style="margin-top:14px"><button class="btn line" id="rotate">↻ Pivoter</button><button class="btn keep" id="cropOk">Ajouter cette photo</button></div>' +
+          '<div class="center-x" style="margin-top:10px"><button class="skip" id="rechooseQ">Changer de photo</button></div>';
+      }
+      return '<div class="drop" id="pickQPhoto"><div class="ic camsig">' + ICON_CAM + '</div><div class="tt">Choisir une photo</div><div class="sub" style="margin-top:4px">On garde un maximum de l’image</div></div>' +
+        '<p class="error"></p><div class="center-x" style="margin-top:12px"><button class="skip" id="cancelPiece">Annuler</button></div>';
     }
-    return '<textarea class="ta" id="ta" placeholder="Écris ce que tu ressens…" maxlength="' + MAX_TXT + '">' + R.esc(st.text) + '</textarea><div class="charcount" id="cc">' + (st.text || '').length + ' / ' + MAX_TXT + '</div>' +
-      '<p class="error"></p><button class="btn gold keep" id="keep" data-busy="Ça me va">Ça me va</button>';
+    // mode « choice » : rien encore → deux choix ; sinon la pièce posée + photo facultative
+    if (!hasContent(st)) {
+      return '<div class="opts">' + opt('lead', ICON_MIC, 'Le raconter', 'Enregistrer un vocal', 'optAudio') + opt('', ICON_PEN, 'L’écrire', 'Quelques mots', 'optText') + '</div>' +
+        (ctx === 'q' && !S.editing ? '<div class="opts" style="margin-top:11px">' + opt('alt', R.icons.refresh, 'Une autre question', 'Passer à une autre', 'pass') + '</div>' : '');
+    }
+    var h = hasVoice(st)
+      ? '<div class="piece"><button class="miniplay" id="playTog">' + (st.playing ? '❚❚' : '▶') + '</button><div class="pmid"><div class="ptt">Vocal</div><div class="pss" id="pt">' + R.fmt(st.duration) + '</div></div>' +
+        '<div class="pacts"><button class="prm" id="redoAudio">Refaire</button><button class="prm" id="removeAudio">Supprimer</button></div></div>'
+      : '<div class="piece ptext"><span class="pi">' + ICON_PEN + '</span><div class="ptxt">' + R.esc((st.text || '').trim().length > 90 ? st.text.trim().slice(0, 90) + '…' : st.text.trim()) + '</div>' +
+        '<div class="pacts"><button class="prm" id="editText">Modifier</button><button class="prm" id="removeText">Supprimer</button></div></div>';
+    h += photoComplement(ctx);
+    h += '<p class="error"></p><div class="stack" style="margin-top:16px"><button class="btn keep" id="keep" data-busy="Valider ce souvenir">Valider ce souvenir</button></div>';
+    return h;
   }
+  function photoComplement(ctx) {
+    var st = holder(ctx);
+    if (!st.photo) {
+      return '<div class="photocomp"><div class="pcq">Une photo pour accompagner ce souvenir ? <span>· facultatif</span></div><button class="btn line" id="addPhoto" style="width:auto;display:inline-flex;padding:11px 18px">Ajouter une photo</button></div>';
+    }
+    var f = st.photoFocus == null ? 50 : st.photoFocus, pos = st.questionPos === 'bottom' ? 'bottom' : 'top';
+    var qtxt = ctx === 'free' ? 'Ton mot pour ' + R.esc(P) : R.esc(S.cur ? S.cur.q : '');
+    return '<div class="piece"><img class="pthumb" src="' + st.photo.url + '" style="object-position:50% ' + f + '%" alt=""><div class="pmid"><div class="ptt">Photo</div><div class="pss">En complément</div></div>' +
+      '<div class="pacts"><button class="prm" id="changePhoto">Modifier</button><button class="prm" id="removePhoto">Retirer</button></div></div>' +
+      '<div class="prev prevphoto' + (st.overlayDark ? ' odark' : '') + '"><img id="qImg" src="' + st.photo.url + '" style="object-position:50% ' + f + '%" alt=""><div class="qpreview ' + pos + '">' + qtxt + '</div></div>' +
+      '<div class="prevcap">Aperçu du cadrage réel dans la story</div>' +
+      '<div class="framer"><div class="lbl">Glisse pour cadrer</div><input type="range" id="focus" min="0" max="100" value="' + f + '"></div>' +
+      '<div class="qposrow"><span class="lbl">Placer la question :</span><button class="qpos' + (pos === 'top' ? ' on' : '') + '" data-qpos="top">En haut</button><button class="qpos' + (pos === 'bottom' ? ' on' : '') + '" data-qpos="bottom">En bas</button></div>' +
+      '<div class="txtcol"><span class="tcl">Texte sur la photo</span><div class="tcbs"><button class="tcb' + (!st.overlayDark ? ' on' : '') + '" data-ov="0">Clair</button><button class="tcb' + (st.overlayDark ? ' on' : '') + '" data-ov="1">Foncé</button></div></div>';
+  }
+  var qcrop = null;
   function bindAnswerArea(ctx) {
-    var st = ctx === 'free' ? S.free : S.q;
-    app.querySelectorAll('.choice[data-mode]').forEach(function (b) { b.onclick = function () { st.mode = b.dataset.mode; st.playing = false; render(); }; });
-    var mic = document.getElementById('mic');
-    if (mic) mic.onclick = function () { micTog(ctx); };
-    var pt = document.getElementById('playTog');
-    if (pt) pt.onclick = function () { playTog(ctx); };
-    var ra = document.getElementById('resetAudio');
-    if (ra) ra.onclick = function () { stopPreview(); st.audio = null; st.duration = 0; st.playing = false; render(); };
-    var ta = document.getElementById('ta');
-    if (ta) ta.oninput = function () { st.text = this.value; document.getElementById('cc').textContent = this.value.length + ' / ' + MAX_TXT; };
-    var pq = document.getElementById('pickQPhoto');
-    if (pq) pq.onclick = function () { fpq.click(); };
-    var cq = document.getElementById('clearQPhoto');
-    if (cq) cq.onclick = function () { S.q.photo = null; render(); };
-    var keep = document.getElementById('keep');
-    if (keep) keep.onclick = function () { keepAnswer(ctx); };
+    var st = holder(ctx);
+    var $ = function (id) { return document.getElementById(id); };
+    var on = function (id, fn) { var el = $(id); if (el) el.onclick = fn; };
+    on('optAudio', function () { st.mode = 'audio'; render(); });
+    on('optText', function () { st.mode = 'texte'; render(); });
+    on('pass', passer);
+    on('cancelPiece', function () { stopRec(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); });
+    on('mic', function () { micTog(ctx); });
+    on('commitText', function () { if (!(st.text || '').trim()) { showErr('Écris quelques mots, ou choisis le vocal.'); return; } st.kind = 'text'; st.mode = 'choice'; render(); });
+    var ta = $('ta'); if (ta) { ta.oninput = function () { st.text = this.value; $('cc').textContent = this.value.length + ' / ' + MAX_TXT; }; ta.focus(); }
+    on('playTog', function () { playTog(ctx); });
+    on('redoAudio', function () { stopPreview(); st.audio = null; st.audioUrl = null; st.duration = 0; st.playing = false; st.mode = 'audio'; render(); });
+    on('removeAudio', function () { stopPreview(); st.audio = null; st.audioUrl = null; st.duration = 0; st.playing = false; st.kind = null; render(); });
+    on('editText', function () { st.mode = 'texte'; render(); });
+    on('removeText', function () { st.text = ''; st.kind = null; render(); });
+    on('addPhoto', function () { S.pickFor = ctx; fpq.click(); });
+    on('pickQPhoto', function () { S.pickFor = ctx; fpq.click(); });
+    on('rechooseQ', function () { S.pickFor = ctx; fpq.click(); });
+    on('changePhoto', function () { S.pickFor = ctx; fpq.click(); });
+    on('removePhoto', function () { if (st.photo && st.photo.photoUrl) st.photoRemoved = true; st.photo = null; render(true); });
+    var fo = $('focus'); if (fo) fo.oninput = function () { st.photoFocus = Number(this.value); var im = $('qImg'); if (im) im.style.objectPosition = '50% ' + this.value + '%'; };
+    app.querySelectorAll('[data-qpos]').forEach(function (b) { b.onclick = function () { st.questionPos = b.dataset.qpos; render(true); }; });
+    app.querySelectorAll('[data-ov]').forEach(function (b) { b.onclick = function () { st.overlayDark = b.dataset.ov === '1'; render(true); }; });
+    on('keep', function () { keepAnswer(ctx); });
+    if (st.mode === 'photo' && st.photo && st.photo.pending) {
+      var box = $('cropper');
+      qcrop = R.cropper(box, st.photo.img, st.photo.shrunk);
+      $('zoom').oninput = function () { qcrop.setZoom(Number(this.value)); };
+      on('rotate', function () { rotatePending(st); });
+      on('cropOk', function () { commitQPhoto(st); });
+    }
+    if (st.mode === 'audio' && !st.audio) countThenRec(ctx);
   }
+  function showErr(msg) { var e = app.querySelector('.error'); if (e) { e.textContent = msg; e.classList.add('show'); } }
+  // 3-2-1 puis enregistrement (maquette) ; le micro doit être autorisé au premier geste
+  function countThenRec(ctx) {
+    var ov = document.getElementById('cdov'), help = document.getElementById('rechelp');
+    if (!ov) return;
+    var k = 3;
+    ov.classList.add('on');
+    (function tick() {
+      if (!document.getElementById('cdov')) return;
+      if (k === 0) { ov.classList.remove('on'); if (help) help.textContent = 'On t’écoute… appuie pour arrêter · ' + R.fmt(MAX_S) + ' max'; micTog(ctx); return; }
+      ov.textContent = k; k--; setTimeout(tick, 470);
+    })();
+  }
+  function stopRec() { if (recObj && recObj.recording()) recObj.stop(); }
   function micTog(ctx) {
-    var st = ctx === 'free' ? S.free : S.q;
-    var mic = document.getElementById('mic'), rt = document.getElementById('rt'), wave = document.getElementById('wave');
+    var st = holder(ctx);
+    var mic = document.getElementById('mic'), wave = document.getElementById('wave');
     var onResult = function (r) {
-      if (!r) { var e = app.querySelector('.error'); if (e) { e.textContent = 'Message trop court, réessaie.'; e.classList.add('show'); } if (mic) mic.classList.remove('rec'); if (wave) wave.classList.remove('on'); return; }
-      st.audio = r.blob; st.mime = r.mime; st.duration = r.duration; render();
+      if (!r) { showErr('Message trop court, réessaie.'); if (mic) mic.classList.remove('rec'); if (wave) wave.classList.remove('on'); var h = document.getElementById('rechelp'); if (h) h.textContent = 'Appuie pour parler'; return; }
+      st.audio = r.blob; st.mime = r.mime; st.duration = r.duration; st.audioUrl = null; st.kind = 'voice'; st.mode = 'choice'; render();
     };
     if (recObj && recObj.recording()) { recObj.stop().then(onResult); return; }
     var self = R.recorder({
       maxSeconds: MAX_S,
       onTick: function (s) { var el = document.getElementById('rt'); if (el) el.textContent = R.fmt(s); },
-      // durée max atteinte : l'enregistrement s'arrête tout seul et ce qui a été dit est conservé
       onAutoStop: function (r) { if (self === recObj && st.audio == null && document.getElementById('mic')) onResult(r); },
     });
     recObj = self;
-    if (!recObj.supported) { var e = app.querySelector('.error'); e.textContent = 'Ton navigateur ne permet pas l’enregistrement. Essaie Safari ou Chrome à jour, ou réponds par écrit.'; e.classList.add('show'); return; }
-    recObj.start().then(function () {
-      mic.classList.add('rec'); wave.classList.add('on');
-    }).catch(function () { var e = app.querySelector('.error'); e.textContent = 'Micro inaccessible. Autorise l’accès au micro puis réessaie.'; e.classList.add('show'); });
+    if (!recObj.supported) { showErr('Ton navigateur ne permet pas l’enregistrement. Essaie Safari ou Chrome à jour, ou réponds par écrit.'); return; }
+    recObj.start().then(function () { if (mic) mic.classList.add('rec'); if (wave) wave.classList.add('on'); })
+      .catch(function () { showErr('Micro inaccessible. Autorise l’accès au micro puis réessaie.'); var h = document.getElementById('rechelp'); if (h) h.textContent = 'Appuie sur le micro pour réessayer'; });
   }
   var previewAudio = null;
   function stopPreview() { if (previewAudio) { previewAudio.pause(); previewAudio = null; } }
   function playTog(ctx) {
-    var st = ctx === 'free' ? S.free : S.q;
-    if (st.playing) { stopPreview(); st.playing = false; render(); return; }
+    var st = holder(ctx);
+    if (st.playing) { stopPreview(); st.playing = false; render(true); return; }
     stopPreview();
-    previewAudio = new Audio(st.audioUrl || URL.createObjectURL(st.audio));
-    st.playing = true; render();
-    previewAudio.onended = function () { st.playing = false; render(); };
+    previewAudio = new Audio(st.audio ? URL.createObjectURL(st.audio) : st.audioUrl);
+    st.playing = true; render(true);
+    previewAudio.onended = function () { st.playing = false; render(true); };
     previewAudio.ontimeupdate = function () { var el = document.getElementById('pt'); if (el) el.textContent = R.fmt(previewAudio.currentTime) + ' / ' + R.fmt(st.duration); };
-    previewAudio.play().catch(function () { st.playing = false; render(); });
+    previewAudio.play().catch(function () { st.playing = false; render(true); });
   }
+  // Photo du souvenir : choix → recadrage portrait → aperçu local
   fpq.onchange = function () {
     var f = fpq.files[0]; fpq.value = '';
     if (!f) return;
-    R.loadImage(f).then(function (l) { return R.shrink(l.img, 1600).then(function (s) { S.q.photo = { url: URL.createObjectURL(s.blob), blob: s.blob }; render(); }); }).catch(fail);
+    var st = holder(S.pickFor || 'q');
+    R.loadImage(f).then(function (l) {
+      return R.shrink(l.img, 1800).then(function (s) { st.photo = { pending: true, img: l.img, shrunk: s, url: URL.createObjectURL(s.blob) }; st.mode = 'photo'; render(); });
+    }).catch(fail);
   };
-  function has(st) { return (st.mode === 'audio' && st.audio) || (st.mode === 'texte' && (st.text || '').trim()) || (st.mode === 'photo' && st.photo); }
+  function rotatePending(st) {
+    var img = st.photo.img;
+    var cv = document.createElement('canvas'); cv.width = img.naturalHeight || img.height; cv.height = img.naturalWidth || img.width;
+    var g = cv.getContext('2d'); g.translate(cv.width / 2, cv.height / 2); g.rotate(Math.PI / 2); g.drawImage(img, -cv.height / 2, -cv.width / 2);
+    var ni = new Image();
+    ni.onload = function () { R.shrink(ni, 1800).then(function (s) { st.photo = { pending: true, img: ni, shrunk: s, url: URL.createObjectURL(s.blob) }; render(); }); };
+    ni.src = cv.toDataURL('image/jpeg', 0.92);
+  }
+  function commitQPhoto(st) {
+    var c = qcrop.getCrop(), sc = st.photo.shrunk.scale;
+    var cv = document.createElement('canvas'); cv.width = 540; cv.height = 960;
+    cv.getContext('2d').drawImage(st.photo.img, c.x / sc, c.y / sc, c.w / sc, c.h / sc, 0, 0, 540, 960);
+    st.photo = { blob: st.photo.shrunk.blob, crop: c, url: cv.toDataURL('image/jpeg', 0.85), sent: false };
+    st.photoFocus = 50; st.questionPos = st.questionPos || 'top';
+    st.mode = 'choice'; render();
+  }
+  // Si la photo vient du serveur (reprise / modification), on la récupère pour la ré-envoyer
+  function ensurePhotoBlob(st) {
+    if (!st.photo || st.photo.blob || !st.photo.fullUrl) return Promise.resolve();
+    return fetch(st.photo.fullUrl).then(function (r) { return r.blob(); }).then(function (b) { st.photo.blob = b; st.photo.crop = null; });
+  }
 
-  // Enregistre le souvenir côté serveur puis avance
+  // Enregistre le souvenir côté serveur (contenu, puis photo et options) puis avance
   function keepAnswer(ctx) {
-    var st = ctx === 'free' ? S.free : S.q;
-    if (!has(st)) return;
+    var st = holder(ctx);
+    if (!hasContent(st)) return;
     stopPreview();
-    var meta = ctx === 'free' ? { free: '1' } : { question: S.cur.q, category: S.cur.cat, questionId: S.cur.id };
+    var isFree = ctx === 'free';
+    var meta = isFree ? { free: '1' } : { question: S.cur.q, category: S.cur.cat, questionId: S.cur.id };
     var qs = Object.keys(meta).map(function (k) { return k + '=' + encodeURIComponent(meta[k] == null ? '' : meta[k]); }).join('&');
     busy(true, 'Envoi…');
-    var req;
-    // Modification d'un souvenir existant : on remplace (supprime puis recrée), sauf texte → texte
-    var editingId = S.editing === 'free' ? (S.free.memoryId) : (S.editing && S.editing.memoryId);
-    var pre = Promise.resolve();
-    if (editingId && !(st.mode === 'texte' && st.kind === 'text')) pre = api('DELETE', '/contributions/' + S.id + '/memories/' + editingId);
-    req = pre.then(function () {
-      if (st.mode === 'texte') {
-        if (editingId && st.kind === 'text') return api('PUT', '/contributions/' + S.id + '/memories/' + editingId, { body: { text: st.text } });
-        return api('POST', '/contributions/' + S.id + '/memories', { body: Object.assign({ text: st.text }, ctx === 'free' ? { free: true } : { question: S.cur.q, category: S.cur.cat, questionId: S.cur.id }) });
-      }
-      if (st.mode === 'audio') {
-        if (st.audioUrl && !st.audio) return { id: editingId, kind: 'voice', duration: st.duration, audio: st.audioUrl }; // inchangé
+    var editingId = st.memoryId || null;
+    var voice = hasVoice(st);
+    var keepsServerVoice = voice && !st.audio && st.audioUrl; // vocal inchangé
+    var needsNew = !editingId || (voice && !keepsServerVoice) || (st.kind === 'photo');
+    var photoMustReupload = needsNew && editingId && st.photo && !st.photo.blob;
+    var chain = photoMustReupload ? ensurePhotoBlob(st) : Promise.resolve();
+    chain = chain.then(function () {
+      if (needsNew && editingId) return api('DELETE', '/contributions/' + S.id + '/memories/' + editingId);
+    }).then(function () {
+      if (voice) {
+        if (keepsServerVoice) return api('GET', '/contributions/' + S.id + '/memories').then(function (r) { return r.memories.filter(function (m) { return m.id === editingId; })[0]; });
         return api('POST', '/contributions/' + S.id + '/memories/audio?duration=' + Math.round(st.duration) + '&' + qs, { body: st.audio, headers: { 'Content-Type': st.mime || 'audio/webm' } });
       }
-      if (st.photo.photoUrl && !st.photo.blob) return { id: editingId, kind: 'photo', photo: st.photo.photoUrl };
-      return api('POST', '/contributions/' + S.id + '/memories/photo?' + qs, { body: st.photo.blob, headers: { 'Content-Type': 'image/jpeg' } });
-    });
-    req.then(function (m) {
-      var rec = {
-        memoryId: m.id, mode: st.mode, kind: m.kind, text: st.text, duration: m.duration || st.duration,
-        audioUrl: m.audio || null, photoUrl: m.photo || null, q: ctx === 'free' ? 'Ton mot pour ' + P : S.cur.q,
-        ic: ctx === 'free' ? '💌' : S.cur.ic, t: ctx === 'free' ? 'Mot libre' : S.cur.t, free: ctx === 'free',
-      };
+      if (editingId && !needsNew) return api('PUT', '/contributions/' + S.id + '/memories/' + editingId, { body: { text: st.text } });
+      return api('POST', '/contributions/' + S.id + '/memories', { body: Object.assign({ text: st.text }, isFree ? { free: true } : { question: S.cur.q, category: S.cur.cat, questionId: S.cur.id }) });
+    }).then(function (m) {
+      var mid = m.id;
+      var p = Promise.resolve(m);
+      if (st.photo && st.photo.blob && !st.photo.sent) {
+        p = p.then(function () {
+          var headers = { 'Content-Type': 'image/jpeg' };
+          if (st.photo.crop) headers['X-Crop'] = JSON.stringify(st.photo.crop);
+          return api('POST', '/contributions/' + S.id + '/memories/' + mid + '/photo?focus=' + (st.photoFocus == null ? 50 : st.photoFocus), { body: st.photo.blob, headers: headers });
+        }).then(function () { st.photo.sent = true; });
+      } else if (!st.photo && st.photoRemoved && !needsNew) {
+        p = p.then(function () { return api('DELETE', '/contributions/' + S.id + '/memories/' + mid + '/photo'); });
+      }
+      if (st.photo) p = p.then(function () { return api('PUT', '/contributions/' + S.id + '/memories/' + mid, { body: { photoFocus: st.photoFocus == null ? 50 : st.photoFocus, questionPos: st.questionPos || 'top', overlayDark: !!st.overlayDark } }); });
+      else p = p.then(function () { return m; });
+      return p;
+    }).then(function (m) {
+      var rec = recFrom(m, isFree ? null : S.cur);
       busy(false);
-      if (ctx === 'free') {
-        S.free = Object.assign({}, rec, { mode: st.mode, done: true });
+      st.photoRemoved = false;
+      if (isFree) {
+        S.free = Object.assign({ mode: 'choice', done: true }, rec);
         if (S.editing) { S.editing = null; go('review'); return; }
         go('libre_after');
         return;
@@ -334,17 +440,30 @@
       go('qcont');
     }).catch(fail);
   }
-  function freshQ() { return { mode: 'choice', text: '', audio: null, duration: 0, photo: null }; }
+  // Représentation locale d'un souvenir à partir de la réponse de l'API
+  function recFrom(m, cur) {
+    var cat = m.category || (cur && cur.cat) || null;
+    return {
+      memoryId: m.id, kind: m.kind, mode: 'choice', text: m.text || '', duration: m.duration || 0, audioUrl: m.audio || null, audio: null,
+      photo: m.photo ? { url: m.photo, photoUrl: m.photo, fullUrl: m.photoFull, sent: true } : null,
+      photoFocus: m.photoFocus == null ? 50 : m.photoFocus, questionPos: m.questionPos || 'top', overlayDark: !!m.overlayDark,
+      q: m.free ? 'Ton mot pour ' + P : (m.question || (cur && cur.q) || ''), cat: cat,
+      ic: m.free ? '💌' : (CATS[cat] ? CATS[cat].icon : '✨'), t: m.free ? 'Mot libre' : (CATS[cat] ? CATS[cat].title : ''), free: !!m.free,
+    };
+  }
+  function freshQ() { return { mode: 'choice', kind: null, text: '', audio: null, audioUrl: null, duration: 0, photo: null, photoFocus: 50, questionPos: 'top', overlayDark: false, playing: false }; }
 
   /* ------------------------------------------------------- 3. mot libre */
   SC.libre = function () {
-    if (!S.free) S.free = { mode: 'choice', text: '', audio: null, duration: 0 };
-    app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">Ton message</span><h1>Tu sais déjà ce<br>que tu veux lui dire ?</h1></div>' +
-      '<div class="body"><div class="sub" style="margin-bottom:18px">Dis-lui ce que tu veux, comme tu le veux. Un souvenir, quelques mots, une déclaration, une blague… c’est ton espace.</div>' +
+    if (!S.free) S.free = freshQ();
+    var st = S.free, u = R.universe('free'), editing = st.mode !== 'choice';
+    app.innerHTML = '<div class="view fade themed" style="' + R.universeVars(u) + '"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">Ton message</span><h1>Ton mot libre<br>pour ' + R.esc(P) + '</h1></div>' +
+      '<div class="body">' +
+      (editing || hasContent(st) ? '' : '<div class="sub" style="margin-bottom:16px">Raconte ou écris ce que tu veux, tu pourras y ajouter une photo.</div>') +
       answerArea('free') +
-      (S.free.mode === 'choice' ? '<button class="link" id="ideas">Donne-moi des idées</button>' : '') +
+      (editing || hasContent(st) ? '' : '<button class="link" id="ideas">Ou découvre les questions</button>') +
       '</div></div>';
-    document.getElementById('back').onclick = function () { if (S.free.mode !== 'choice' && !S.editing) { S.free.mode = 'choice'; render(); } else if (S.editing) { S.editing = null; go('review'); } else go('photo'); };
+    document.getElementById('back').onclick = function () { if (st.mode !== 'choice') { stopRec(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); } else if (S.editing) { S.editing = null; go('review'); } else go('photo'); };
     var ideas = document.getElementById('ideas'); if (ideas) ideas.onclick = function () { go('qcard'); };
     bindAnswerArea('free');
   };
@@ -369,38 +488,39 @@
     if (n >= MAXQ) { app.innerHTML = centered('🤎', (MAXQ === 4 ? 'Quatre' : MAXQ) + ' souvenirs.<br>C’est déjà magnifique.', '', '<button class="btn gold" id="toPrev">J’ai fini mon souvenir</button>'); document.getElementById('toPrev').onclick = function () { go('preview'); }; return; }
     if (S.qptr >= S.queue.length) { app.innerHTML = centered('✨', 'Tu les as toutes<br>parcourues.', '', '<button class="btn gold" id="toPrev">J’ai fini mon souvenir</button>'); document.getElementById('toPrev').onclick = function () { go('preview'); }; return; }
     var cur = S.queue[S.qptr]; S.cur = cur;
-    var answering = S.q.mode !== 'choice';
-    var mid;
-    if (!answering) {
-      mid = '<div class="qcardbig' + (swap ? ' card-in' : '') + '" id="qc"><div class="bigq">' + R.esc(cur.q) + '</div></div>' +
-        '<div class="stack" style="margin-top:20px">' +
-          '<button class="btn gold" data-mode="audio">🎙️  Le raconter</button>' +
-          '<button class="btn line" data-mode="texte">✍️  L’écrire</button>' +
-          '<button class="btn line" data-mode="photo">📸  Le montrer</button>' +
-          '<button class="btn pass2" id="pass">↻  Une autre question</button>' +
-        '</div>';
-    } else {
-      mid = '<div class="qbox">' + R.esc(cur.q) + '</div>' + answerArea('q');
-    }
+    var st = S.q, u = R.universe(cur.cat);
+    var choosing = st.mode === 'choice' && !hasContent(st);
     var swap = S.cardSwap; S.cardSwap = false;
-    app.innerHTML = '<div class="view' + (swap ? '' : ' fade') + '"><div class="head compact"><button class="backarr" id="back">‹</button><span class="kicker">' + (cur.ic || '') + ' ' + R.esc(cur.t || '') + '</span></div>' +
+    var mid = choosing
+      ? '<div class="qcardbig themed' + (swap ? ' card-in' : ' qflip') + '" id="qc"><div class="bigq">' + R.esc(cur.q) + '</div></div>' + answerArea('q')
+      : '<div class="qbox" style="background:var(--soft);border-color:transparent">' + R.esc(cur.q) + '</div>' + answerArea('q');
+    app.innerHTML = '<div class="view themed' + (swap ? '' : ' fade') + '" style="' + R.universeVars(u) + '"><div class="head compact"><button class="backarr" id="back">‹</button><span class="kicker">' + R.esc(cur.t || '') + '</span></div>' +
       '<div class="body" style="padding-top:8px">' +
-      (!answering ? (n > 0 ? '<div class="center-x" style="margin-bottom:14px"><span class="counter">' + n + ' / ' + MAXQ + '</span></div>' : '<div class="sub" style="margin:-2px 0 14px">Une question t’inspire ? Réponds. Sinon, passe à la suivante.</div>') : '') +
+      (choosing ? (n > 0 ? '<div class="center-x" style="margin-bottom:14px"><span class="counter">' + n + ' sur ' + MAXQ + '</span></div>' : '<div class="sub" style="margin:-2px 0 14px">Ajoute ce que tu veux : une voix ou un mot, et une photo si tu veux.</div>') : '') +
       mid +
-      (!answering ? '<div class="center-x" style="margin-top:18px"><button class="skip" id="stop">' + (n > 0 ? 'J’ai fini mon souvenir' : 'Je m’arrête là') + '</button></div>' : '') +
+      (choosing ? '<div class="center-x" style="margin-top:16px"><button class="skip" id="stop">' + (n > 0 ? 'J’ai fini mon souvenir' : 'Je m’arrête là') + '</button></div>' : '') +
       '</div></div>';
     document.getElementById('back').onclick = function () {
-      if (answering) { stopPreview(); S.q = freshQ(); render(); } else go(S.free && S.free.done ? 'libre_after' : 'libre');
+      if (st.mode !== 'choice') { stopRec(); stopPreview(); st.mode = 'choice'; if (st.photo && st.photo.pending) st.photo = null; render(); }
+      else if (hasContent(st)) { if (confirm('Abandonner ce souvenir ?')) { stopPreview(); S.q = freshQ(); render(); } }
+      else go(S.free && S.free.done ? 'libre_after' : 'libre');
     };
-    if (!answering) {
-      app.querySelectorAll('[data-mode]').forEach(function (b) { b.onclick = function () { S.q.mode = b.dataset.mode; render(); }; });
-      document.getElementById('pass').onclick = passer;
-      document.getElementById('stop').onclick = function () { go('preview'); };
+    if (choosing) {
+      document.getElementById('stop').onclick = confirmStop;
       var el = document.getElementById('qc'), x0 = null;
       el.addEventListener('touchstart', function (e) { x0 = e.touches[0].clientX; }, { passive: true });
       el.addEventListener('touchend', function (e) { if (x0 == null) return; if (e.changedTouches[0].clientX - x0 < -55) passer(); x0 = null; });
-    } else bindAnswerArea('q');
+    }
+    bindAnswerArea('q');
   };
+  function confirmStop() {
+    var m = document.createElement('div'); m.className = 'modal';
+    m.innerHTML = '<div class="box"><h2>Tu as terminé ?</h2><div class="sub" style="margin-bottom:16px">Tu vas relire tes souvenirs avant l’envoi. Tu pourras encore les modifier, ou en ajouter un autre.</div>' +
+      '<div class="stack"><button class="btn gold" id="stopYes">Oui, voir mes souvenirs</button><button class="btn line" id="stopNo">Non, continuer</button></div></div>';
+    document.body.appendChild(m);
+    m.querySelector('#stopYes').onclick = function () { m.remove(); go('preview'); };
+    m.querySelector('#stopNo').onclick = function () { m.remove(); };
+  }
   function passer() {
     var card = document.getElementById('qc');
     if (S.passing) return;
@@ -410,7 +530,7 @@
   }
   SC.qcont = function () {
     var n = S.answered.length, more = n < MAXQ && S.qptr < S.queue.length;
-    app.innerHTML = centered('🤎', 'Souvenir enregistré.', '<span class="counter">' + n + ' / ' + MAXQ + '</span>',
+    app.innerHTML = centered('<span class="heart" style="display:inline-block;width:44px">' + R.icons.heartFull + '</span>', 'Et un souvenir de plus<br>pour ' + R.esc(P) + '.', '<span class="counter">' + n + ' sur ' + MAXQ + '</span>',
       (more ? '<button class="btn" id="more">Une autre question</button>' : '') + '<button class="btn gold" id="toPrev">J’ai fini mon souvenir</button>');
     var m = document.getElementById('more'); if (m) m.onclick = function () { go('qcard'); };
     document.getElementById('toPrev').onclick = function () { go('preview'); };
@@ -426,59 +546,72 @@
   SC.preview = function () {
     var ps = pieces();
     if (!ps.length) { go('review'); return; }
-    app.innerHTML = centered('👀', 'Avant d’envoyer…', 'Regarde ce que ' + R.esc(P) + ' verra. Tu pourras encore tout modifier.',
-      '<button class="btn gold" id="story">▶  Voir mes souvenirs</button><button class="btn line" id="rev">Aller à la validation</button>');
-    document.getElementById('story').onclick = function () { S.mpi = 0; go('mstory'); };
+    app.innerHTML = centered('<span class="heart pop" style="display:inline-block;width:46px">' + R.icons.heartFull + '</span>', 'Ton souvenir<br>est prêt.', 'Tu veux voir ce que ' + R.esc(P) + ' découvrira ?',
+      '<button class="btn gold" id="story">Voir mon souvenir</button>') + '';
+    document.getElementById('story').onclick = function () { S.mpi = 0; S.openSig = true; go('mstory'); };
+    var c = app.querySelector('.stack'); if (c) c.insertAdjacentHTML('afterend', '<div class="center-x" style="margin-top:14px"><button class="skip" id="rev">Passer directement à l’envoi</button></div>');
     document.getElementById('rev').onclick = function () { go('review'); };
   };
   var storyPlayer = R.audioPlayer();
-  SC.mstory = function () { playMine(S.mpi); };
+  var stopHalo = null;
+  function killStory() { if (stopHalo) { stopHalo(); stopHalo = null; } storyPlayer.stop(); }
+  SC.mstory = function () {
+    if (S.openSig) { S.openSig = false; S.timer = R.opening(app, 'Un souvenir pour ' + P, function () { if (S.sc === 'mstory') playMine(0); }); return; }
+    playMine(S.mpi);
+  };
+  function itemOf(p) {
+    return {
+      hasAudio: p.kind === 'voice' || !!p.audio, hasText: p.kind === 'text' && !!(p.text || '').trim(), hasPhoto: !!p.photo,
+      text: p.text, duration: p.duration, photoFull: p.photo ? p.photo.url : null, photoFocus: p.photoFocus, questionPos: p.questionPos, overlayDark: p.overlayDark,
+      category: p.cat, free: p.free, question: p.free ? '' : p.q,
+    };
+  }
   function playMine(i) {
+    killStory();
     var ps = pieces();
     if (!ps.length) { go('review'); return; }
-    storyPlayer.stop();
     var p = ps[i];
-    var bars = ps.map(function (_, k) { return '<div class="p"><i style="width:' + (k < i ? '100%' : k === i ? '100%' : '0') + '"></i></div>'; }).join('');
-    var bg = p.mode === 'photo' && p.photoUrl ? 'background-image:url(\'' + p.photoUrl + '\')' : S.photo && S.photo.url ? 'background-image:url(\'' + S.photo.url + '\')' : '';
-    var inner;
-    if (p.mode === 'audio') inner = '<div class="mkick">' + R.esc(p.q) + '</div><div class="mvoice" id="mv"><button class="pl" id="mplay"><svg width="15" height="17" viewBox="0 0 15 17" fill="currentColor"><path d="M2 2 L13 8.5 L2 15 Z"/></svg></button><div class="w">' + R.bars(20) + '</div><div class="d" id="md">' + R.fmt(p.duration) + '</div></div>';
-    else if (p.mode === 'photo') inner = '<div class="mkick">' + R.esc(p.q) + '</div><div class="mphotocap">📸 Ta photo</div>';
-    else inner = '<div class="mkick">' + R.esc(p.q) + '</div><div class="mnote' + ((p.text || '').length > 220 ? ' long' : '') + '">“ ' + R.esc(p.text) + ' ”</div>';
-    app.innerHTML = '<div class="mstory"><div class="bg' + (bg ? '' : ' grad') + '" style="' + bg + '"></div><div class="mveil"></div>' +
+    var v = R.storyView(itemOf(p), { kickVoice: p.free ? 'Ton mot pour ' + P : 'Un souvenir pour ' + P, kickText: 'Ton mot pour ' + P, kickPhoto: 'Ton souvenir en image', signature: S.name });
+    var bars = ps.map(function (_, k) { return '<div class="p"><i style="width:' + (k <= i ? '100%' : '0') + '"></i></div>'; }).join('');
+    var av = S.selfie ? 'background-image:url(\'' + S.selfie.url + '\')' : 'background:var(--gold);color:#fff';
+    app.innerHTML = '<div class="mstory ' + v.cls + '" style="' + v.style + '">' + v.html +
       '<div class="mprog">' + bars + '</div>' +
-      '<div class="mshead"><div class="mava" style="' + (S.selfie ? 'background-image:url(\'' + S.selfie.url + '\')' : '') + '">' + (S.selfie ? '' : R.esc((S.name || '?')[0])) + '</div><div class="mnm">' + R.esc(S.name || 'Toi') + '</div><button class="mx" id="mx">✕</button></div>' +
-      '<div class="msbody">' + inner + '</div>' +
-      '<div class="mtaps"><div class="l" id="ml"></div><div class="r" id="mr"></div></div><div class="mtaphint">Touche à droite pour continuer</div></div>';
-    document.getElementById('mx').onclick = function () { storyPlayer.stop(); go('review'); };
+      '<div class="mshead"><div class="mava" style="' + av + '">' + (S.selfie ? '' : R.esc((S.name || '?')[0])) + '</div><div class="mhinfo"><span class="n2">' + R.esc(S.name || 'Toi') + '</span><span class="s2">pour ' + R.esc(P) + '</span></div><button class="mx" id="mx">' + R.icons.x + '</button></div>' +
+      '<div class="mtaps"><div class="l" id="ml"></div><div class="r" id="mr"></div></div></div>';
+    document.getElementById('mx').onclick = function () { killStory(); go('review'); };
     document.getElementById('ml').onclick = function () { if (S.mpi > 0) { S.mpi--; playMine(S.mpi); } };
-    document.getElementById('mr').onclick = function () { if (S.mpi < ps.length - 1) { S.mpi++; playMine(S.mpi); } else { storyPlayer.stop(); go('review'); } };
-    var mp = document.getElementById('mplay');
-    if (mp) {
-      var playStory = function () {
-        var mv = document.getElementById('mv');
-        if (storyPlayer.playing()) { storyPlayer.pause(); mv.classList.remove('on'); return; }
-        storyPlayer.play(p.audioUrl, {
-          onended: function () { mv.classList.remove('on'); },
-          ontimeupdate: function () { var d = document.getElementById('md'); if (d) d.textContent = R.fmt(storyPlayer.el.currentTime) + ' / ' + R.fmt(p.duration); },
-        }).then(function () { mv.classList.add('on'); }).catch(function () {});
+    document.getElementById('mr').onclick = function () { if (S.mpi < ps.length - 1) { S.mpi++; playMine(S.mpi); } else { killStory(); go('review'); } };
+    R.bindTextPanel();
+    if (v.halo) {
+      var url = p.audio ? URL.createObjectURL(p.audio) : p.audioUrl;
+      var paused = false, btn = document.getElementById('mpauseBtn');
+      storyPlayer.play(url, {}).catch(function () { paused = true; if (btn) btn.innerHTML = R.icons.play; });
+      stopHalo = R.halo(function () { return storyPlayer.level(); }, function () { return storyPlayer.el.currentTime || 0; }, function () { return p.duration || storyPlayer.el.duration || 1; }, function () { return paused || storyPlayer.el.paused; });
+      if (btn) btn.onclick = function (e) {
+        e.stopPropagation();
+        if (storyPlayer.el.paused) { paused = false; storyPlayer.el.play().catch(function () {}); btn.innerHTML = R.icons.pause; }
+        else { paused = true; storyPlayer.pause(); btn.innerHTML = R.icons.play; }
       };
-      mp.onclick = function (e) { e.stopPropagation(); playStory(); };
-      playStory(); // lecture automatique, comme dans le reveal du destinataire
     }
   }
   SC.review = function () {
+    killStory();
     var ps = pieces();
     var rows = ps.map(function (p) {
-      var icon = p.mode === 'audio' ? '🎙️' : p.mode === 'texte' ? '✍️' : '📸';
-      var prev = p.mode === 'texte' ? ((p.text || '').slice(0, 64) + ((p.text || '').length > 64 ? '…' : '')) : p.mode === 'audio' ? 'Vocal · ' + R.fmt(p.duration) : 'Une photo';
+      var hA = p.kind === 'voice' || !!p.audio, hT = p.kind === 'text' && (p.text || '').trim(), hP = !!p.photo;
+      var icon = (hP ? '📸' : '') + (hA ? '🎙️' : '') + (hT ? '✍️' : '');
+      var parts = [];
+      if (hP) parts.push('Photo');
+      if (hA) parts.push('Vocal · ' + R.fmt(p.duration));
+      if (hT) parts.push('« ' + (p.text || '').trim().slice(0, 54) + ((p.text || '').trim().length > 54 ? '…' : '') + ' »');
       var st = S.starId === p.memoryId;
-      return '<div class="ritem' + (st ? ' star' : '') + '"><div class="ritop"><div class="rmain"><div class="rq">' + icon + ' ' + R.esc(p.q) + '</div><div class="rp">' + R.esc(prev) + '</div></div>' +
+      return '<div class="ritem' + (st ? ' star' : '') + '"><div class="ritop"><div class="rmain"><div class="rq">' + icon + ' ' + R.esc(p.q) + '</div><div class="rp">' + R.esc(parts.join(' · ')) + '</div></div>' +
         '<button class="rstar' + (st ? ' on' : '') + '" data-star="' + p.memoryId + '" title="Vu en premier">★</button></div>' +
         '<div class="ractions"><button class="ract" data-edit="' + p.id + '">Modifier</button><button class="ract del" data-del="' + p.id + '">Supprimer</button></div></div>';
     }).join('');
     app.innerHTML = '<div class="view fade"><div class="head"><button class="backarr" id="back">‹</button><span class="kicker">Avant d’envoyer</span><h1>Ton souvenir<br>pour ' + R.esc(P) + '</h1></div>' +
       '<div class="body">' +
-        (ps.length > 1 ? '<div class="note" style="margin-top:0;margin-bottom:14px"><span class="em">⭐</span><span>Mets une <b>★</b> sur celui qui compte le plus, c’est celui que ' + R.esc(P) + ' verra en premier.</span></div>' : '') +
+        (ps.length > 1 ? '<div class="note" style="margin-top:0;margin-bottom:14px"><span class="em" style="color:var(--gold);display:inline-block;width:18px">' + R.icons.star + '</span><span>Mets une <b style="color:var(--gold)">★</b> sur celui qui compte le plus, c’est celui que ' + R.esc(P) + ' verra en premier.</span></div>' : '') +
         (ps.length ? rows : '<div class="sub" style="margin:18px 0">Tu n’as encore rien laissé.</div>') +
         (!S.photo ? '<div class="note"><span class="em">🖼️</span><span>Tu n’as pas encore ajouté de photo pour le cadre. <button class="skip" id="addPhoto" style="padding:0">Ajouter une photo</button></span></div>' : '') +
         (ps.length < 1 + MAXQ ? '<div class="center-x" style="margin-top:14px"><button class="skip" id="addMore">' + (S.free && S.free.done ? 'Répondre à une question de plus' : 'Écrire un mot libre') + '</button></div>' : '') +
@@ -487,7 +620,7 @@
         (ps.length ? '<div class="center-x" style="margin-top:12px"><button class="skip" id="story">Revoir en story</button></div>' : '') +
       '</div></div>';
     document.getElementById('back').onclick = function () { go(ps.length ? 'preview' : (S.free && S.free.done ? 'libre_after' : 'libre')); };
-    app.querySelectorAll('[data-star]').forEach(function (b) { b.onclick = function () { var id = Number(b.dataset.star); S.starId = S.starId === id ? null : id; render(); }; });
+    app.querySelectorAll('[data-star]').forEach(function (b) { b.onclick = function () { var id = Number(b.dataset.star); S.starId = S.starId === id ? null : id; render(true); }; });
     app.querySelectorAll('[data-edit]').forEach(function (b) { b.onclick = function () { editP(b.dataset.edit); }; });
     app.querySelectorAll('[data-del]').forEach(function (b) { b.onclick = function () { delP(b.dataset.del); }; });
     var ap = document.getElementById('addPhoto'); if (ap) ap.onclick = function () { go('photo'); };
@@ -507,17 +640,23 @@
   function editP(id) {
     var p = pieces().find(function (x) { return x.id === id; });
     if (!p) return;
-    var st = { mode: p.mode, kind: p.kind, text: p.text || '', audio: null, audioUrl: p.audioUrl, duration: p.duration || 0, photo: p.photoUrl ? { url: p.photoUrl, photoUrl: p.photoUrl } : null, playing: false, memoryId: p.memoryId };
-    if (id === 'free') { S.editing = 'free'; S.free = Object.assign(S.free, st, { done: true }); go('libre'); return; }
+    var st = Object.assign(freshQ(), {
+      kind: p.kind === 'photo' ? null : p.kind, text: p.text || '', audioUrl: p.kind === 'voice' ? p.audioUrl : null, duration: p.duration || 0,
+      photo: p.photo ? { url: p.photo.url, photoUrl: p.photo.photoUrl, fullUrl: p.photo.fullUrl, sent: true } : null,
+      photoFocus: p.photoFocus, questionPos: p.questionPos, overlayDark: p.overlayDark, memoryId: p.memoryId,
+    });
+    if (p.kind === 'photo') st.legacyPhoto = true;
+    if (id === 'free') { S.editing = 'free'; S.free = Object.assign({}, p, st, { done: true }); go('libre'); return; }
     S.editing = { memoryId: p.memoryId };
-    S.cur = { q: p.q, cat: null, ic: p.ic, t: p.t };
+    S.cur = { q: p.q, cat: p.cat, ic: p.ic, t: p.t, id: null };
     S.q = st;
     go('qedit');
   }
   SC.qedit = function () {
-    app.innerHTML = '<div class="view fade"><div class="head compact"><button class="backarr" id="back">‹</button><span class="kicker">' + (S.cur.ic || '') + ' ' + R.esc(S.cur.t || '') + '</span></div>' +
-      '<div class="body" style="padding-top:8px"><div class="qbox">' + R.esc(S.cur.q) + '</div>' + answerArea('q') + '</div></div>';
-    document.getElementById('back').onclick = function () { stopPreview(); S.editing = null; S.q = freshQ(); go('review'); };
+    var u = R.universe(S.cur.cat);
+    app.innerHTML = '<div class="view fade themed" style="' + R.universeVars(u) + '"><div class="head compact"><button class="backarr" id="back">‹</button><span class="kicker">' + R.esc(S.cur.t || '') + '</span></div>' +
+      '<div class="body" style="padding-top:8px"><div class="qbox" style="background:var(--soft);border-color:transparent">' + R.esc(S.cur.q) + '</div>' + answerArea('q') + '</div></div>';
+    document.getElementById('back').onclick = function () { if (S.q.mode !== 'choice') { stopRec(); S.q.mode = 'choice'; if (S.q.photo && S.q.photo.pending) S.q.photo = null; render(); return; } stopPreview(); S.editing = null; S.q = freshQ(); go('review'); };
     bindAnswerArea('q');
   };
   function sendAll() {
@@ -543,8 +682,8 @@
     S.id = saved.id; S.token = saved.token; S.name = saved.name || '';
     api('GET', '/contributions/' + S.id + '/memories').then(function (r) {
       r.memories.forEach(function (m) {
-        var rec = { memoryId: m.id, mode: m.kind === 'voice' ? 'audio' : m.kind === 'text' ? 'texte' : 'photo', kind: m.kind, text: m.text || '', duration: m.duration, audioUrl: m.audio, photoUrl: m.photo, q: m.free ? 'Ton mot pour ' + P : m.question, ic: m.free ? '💌' : (CATS[m.category] ? CATS[m.category].icon : '✨'), t: m.free ? 'Mot libre' : (CATS[m.category] ? CATS[m.category].title : ''), free: m.free };
-        if (m.free && !S.free) S.free = Object.assign({}, rec, { done: true }); else S.answered.push(rec);
+        var rec = recFrom(m, null);
+        if (m.free && !S.free) S.free = Object.assign({ mode: 'choice', done: true }, rec); else S.answered.push(rec);
       });
       S.starId = r.star;
       if (r.name) S.name = r.name;

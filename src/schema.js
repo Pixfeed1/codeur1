@@ -194,6 +194,10 @@ function migrate(db) {
     ['contributions', 'star_memory_id INTEGER'], // souvenir montré au reveal
     ['photos', "role TEXT NOT NULL DEFAULT 'main'"], // main (cadre) | selfie | memory
     ['questions', 'category TEXT'],
+    // V1.1 : photo facultative liée au souvenir (photo_id existait déjà)
+    ['memories', 'photo_focus INTEGER NOT NULL DEFAULT 50'],   // position verticale du cadrage (0-100)
+    ['memories', "question_pos TEXT NOT NULL DEFAULT 'top'"],  // question en haut ou en bas de la photo
+    ['memories', 'overlay_dark INTEGER NOT NULL DEFAULT 0'],   // 1 = texte foncé sur la photo (voile clair)
   ]) {
     try {
       db.exec(`ALTER TABLE ${table} ADD COLUMN ${col}`);

@@ -1,14 +1,15 @@
 # Ravive V1 cadres — note de reprise
 
-Point de situation au 9 septembre 2026, pour reprendre le travail dans une nouvelle session.
+Point de situation au 14 septembre 2026, pour reprendre le travail dans une nouvelle session.
 
 ## Contexte
-- Client : Ravive (Emilien / Clara Grange), via Codeur. Devis 3 900 € HT en 3 lots. Lots 1 et 2 payés, lot 3 (1 170 €) à facturer à la mise en production.
+- Client : Ravive (Emilien / Clara Grange), via Codeur. Devis 3 900 € HT en 3 lots, tous réglés (lot 3 viré le 14 septembre, mise en production datée du 14 septembre). Support gratuit (bugs, corrections sur l'existant) jusqu'au 25 octobre 2026.
+- V1.1 proposée au client le 13 septembre (1 400 € HT, devis à envoyer, 50 % à la commande) : voir `docs/V1.1.md`. Ne rien coder avant l'acompte.
 - Branche de travail : `claude/ravive-project-quote-5cmhkv` (ne pas pousser ailleurs sans accord). Tout est commité et poussé.
 - Serveur du client : `ssh root@ravive-moi.fr`, appli dans `/home/ravive/ravive-app`, service systemd `ravive`, logs dans `app.log` (pas journalctl).
   Mise à jour : `cd /home/ravive/ravive-app && sudo -u ravive git pull -q && systemctl restart ravive`
   Données de démo : `sudo -u ravive node scripts/seed-demo.js --reset`
-- Serveur PixFeed (dev) : ravive.pixfeed.net, `/home/jurojinn/ravive-app`, port 4010, `journalctl -u ravive -f`.
+- Serveur PixFeed (démo, cPanel/Apache) : ravive.pixfeed.net, `/home/jurojinn/ravive-app`, port 4010, `journalctl -u ravive -f`. Héberge encore les cartes postales de démo (puces NFC du client écrites avec ces liens). À éteindre le vendredi 18 septembre, accord du client reçu ; les cartes se créent désormais sur ravive-moi.fr.
 - Shopify branché (webhook, 5 produits avec SKU RAVIVE-10/25/50/100/EXTRA), Brevo branché, ffmpeg installé chez le client.
 - Admin : https://ravive-moi.fr/admin (identifiants dans le `.env` du serveur).
 
@@ -27,7 +28,10 @@ Point de situation au 9 septembre 2026, pour reprendre le travail dans une nouve
 7. Reveal destinataire : question plus grande et plus centrale (`.mkick` dans `public/js/recipient.js` et `public/css/ravive.css`).
 Toutes faites, testées (captures iPhone 13) et poussées.
 
-## Avenant proposé au client (600 € HT), à faire seulement s'il accepte
+## Charte
+Couleurs des maquettes finales appliquées le 14 septembre (chocolat sur les boutons, terracotta en accent, commit 0687320), offertes.
+
+## Avenant proposé au client (600 € HT), repris dans la V1.1 (`docs/V1.1.md`)
 - 4 univers de questions avec couleurs : Dossiers & délires #F4C95D, Ce qu'on ressent #E98273, Vos souvenirs #82B9D8, Et après ? #A99BD4 (aujourd'hui 5 catégories : dire, souv, dossier, nous, devant, dans `src/schema.js` et l'admin). Couleur sur le titre de catégorie et teinte légère de la carte, fond crème conservé.
 - Icônes Ravive en trait fin (onde, crayon, contour photo) à la place des emojis des 3 boutons de réponse.
 - Forme d'onde qui suit vraiment la voix (Web Audio AnalyserNode sur le lecteur partagé `RV.audioPlayer`), à valider sur iPhone.
@@ -37,4 +41,6 @@ Toutes faites, testées (captures iPhone 13) et poussées.
 - Mentions légales et politique de confidentialité (`views/mentions-legales.html`, `views/confidentialite.html`) : attendre le SIRET du client.
 - Relier le domaine de la boutique Shopify et mettre « URL de la boutique » dans l'admin (Réglages) ; identifiant de variante places supplémentaires déjà renseigné (54885649154389).
 - Tests sur vrais téléphones (iPhone Safari : micro, photo, lecture auto des vocaux).
-- Facture lot 3 à la mise en production. Option vidéo (600 € HT) refusée par le client pour la V1.
+- Attendre du client : SIRET (mentions légales) et adresse définitive de la boutique Shopify (demandés le 14 septembre).
+- Cartes postales : bug signalé sur le téléphone d'Émilien (enregistrement qui ne démarre pas) ; serveur vérifié OK, lecture OK sur iPhone ; en attente de son test (Safari direct, réglage micro).
+- Option vidéo (600 € HT) refusée par le client pour la V1.

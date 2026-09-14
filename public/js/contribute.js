@@ -528,7 +528,7 @@
     }).catch(fail);
   }
   SC.merci = function () {
-    app.innerHTML = '<div class="view center merci"><div class="seal-anim"><svg viewBox="0 0 120 120" width="120" height="120"><circle class="ring" cx="60" cy="60" r="52" fill="none" stroke="#BE9B5E" stroke-width="2"/><path class="check" d="M38 62 L54 78 L84 46" fill="none" stroke="#C77B5A" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
+    app.innerHTML = '<div class="view center merci"><div class="seal-anim"><svg viewBox="0 0 120 120" width="120" height="120"><circle class="ring" cx="60" cy="60" r="52" fill="none" stroke="#BC5A44" stroke-width="2"/><path class="check" d="M38 62 L54 78 L84 46" fill="none" stroke="#BC5A44" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/></svg></div>' +
       '<h1 class="lede anim-in d3" style="margin-top:18px">C’est envoyé.</h1>' +
       '<div class="sub anim-in d4" style="margin-top:12px;max-width:290px">Merci d’avoir laissé un peu de toi. Ton souvenir fait maintenant partie de la surprise de ' + R.esc(P) + '.</div>' +
       '<div class="sub anim-in d5" style="margin-top:14px">Plus qu’à garder le secret jusqu’au jour J… 🤫</div>' +

@@ -9,6 +9,7 @@ const config = require('./src/config');
 const db = require('./src/db');
 const { issueToken, verifyToken } = require('./src/tokens');
 const jobs = require('./src/jobs');
+const media = require('./src/media');
 
 const app = express();
 app.disable('x-powered-by');
@@ -165,7 +166,7 @@ const MIME_EXT = {
 app.post(
   '/api/cards/:slug/message',
   express.raw({ type: () => true, limit: config.MAX_UPLOAD_BYTES }),
-  (req, res) => {
+  async (req, res) => {
     const card = db.getCard(req.params.slug);
     if (!card) return res.status(404).json({ error: 'unknown_card' });
     if (card.status === 'recorded') return res.status(423).json({ error: 'already_recorded' });
@@ -180,10 +181,20 @@ app.post(
     if (!Buffer.isBuffer(req.body) || req.body.length < 1000) {
       return res.status(400).json({ error: 'empty_audio' });
     }
+    let mimeStored = mime;
 
-    const duration = Math.min(Number(req.query.duration) || 0, config.MAX_DURATION_S);
-    const file = `${card.slug}-${crypto.randomBytes(4).toString('hex')}.${ext}`;
-    fs.writeFileSync(path.join(config.AUDIO_DIR, file), req.body);
+    // Conversion en AAC (m4a) quand ffmpeg est disponible : un seul format lisible partout,
+    // avec la durée dans le fichier (curseur et fin de lecture fiables). Sinon fichier tel quel.
+    let stored;
+    try {
+      stored = await media.storeAudio(req.body, mime, Number(req.query.duration), config.MAX_DURATION_S);
+    } catch (err) {
+      console.error('vocal carte :', err.message);
+      return res.status(500).json({ error: 'store_failed' });
+    }
+    const duration = stored.duration_s;
+    const file = stored.file;
+    mimeStored = stored.mime;
 
     // Photo : attachée uniquement si le client la confirme (?photo=1),
     // sinon la photo en attente est abandonnée (ex. retirée avant validation).
@@ -201,7 +212,7 @@ app.post(
 
     // attachRecording ne réussit qu'une fois (verrou en base) : si deux uploads
     // arrivent en même temps, un seul gagne, les fichiers de l'autre sont nettoyés.
-    if (!db.attachRecording(card.slug, { file, mime, duration, photoFile, photoMime })) {
+    if (!db.attachRecording(card.slug, { file, mime: mimeStored, duration, photoFile, photoMime })) {
       fs.unlinkSync(path.join(config.AUDIO_DIR, file));
       if (photoFile) fs.unlinkSync(path.join(config.PHOTO_DIR, photoFile));
       return res.status(423).json({ error: 'already_recorded' });

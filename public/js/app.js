@@ -85,17 +85,8 @@
     }
     listenAudio.addEventListener('play', syncIcon);
     listenAudio.addEventListener('pause', syncIcon);
-    listenAudio.addEventListener('timeupdate', function () {
-      var d = isFinite(listenAudio.duration) && listenAudio.duration
-        ? listenAudio.duration : (state.duration || 1);
-      listenProgress.style.width = Math.min(100, (listenAudio.currentTime / d) * 100) + '%';
-      listenTime.textContent = fmt(listenAudio.currentTime) + ' / ' + fmt(d);
-    });
-    listenAudio.addEventListener('ended', function () {
-      listenProgress.style.width = '0%';
-      if (state.duration) listenTime.textContent = fmt(state.duration);
-      syncIcon();
-    });
+    bindPlayback(listenAudio, listenProgress, listenTime, function () { return state.duration || (isFinite(listenAudio.duration) ? listenAudio.duration : 0); });
+    listenAudio.addEventListener('pause', syncIcon);
 
     show('listen');
     return;
@@ -251,13 +242,16 @@
         chunks = [];
         recorder.ondataavailable = function (e) { if (e.data && e.data.size) chunks.push(e.data); };
         recorder.onstop = onRecordingStopped;
-        recorder.start(250);
+        recorder.start(); // un seul morceau, livré à l'arrêt : plus fiable sur iPhone que le découpage
 
-        audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-        analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 256;
-        audioCtx.createMediaStreamSource(stream).connect(analyser);
-        drawWave();
+        // Onde animée : facultative, ne doit jamais empêcher l'enregistrement
+        try {
+          audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+          analyser = audioCtx.createAnalyser();
+          analyser.fftSize = 256;
+          audioCtx.createMediaStreamSource(stream).connect(analyser);
+          drawWave();
+        } catch (e) { audioCtx = null; analyser = null; }
 
         startedAt = Date.now();
         timerId = setInterval(function () {
@@ -297,7 +291,7 @@
     if (recorder && recorder.state !== 'inactive') {
       recordedDuration = Math.min((Date.now() - startedAt) / 1000, maxDuration);
       if (discard) recorder.onstop = null;
-      recorder.stop();
+      try { recorder.stop(); } catch (e) { onRecordingStopped(); }
     }
     if (discard) {
       cleanupRecording();
@@ -345,14 +339,41 @@
     previewAudio = new Audio(URL.createObjectURL(recordedBlob));
     previewTime.textContent = fmt(recordedDuration);
     previewProgress.style.width = '0%';
-    previewAudio.addEventListener('timeupdate', function () {
-      previewProgress.style.width = Math.min(100, (previewAudio.currentTime / recordedDuration) * 100) + '%';
-      previewTime.textContent = fmt(previewAudio.currentTime) + ' / ' + fmt(recordedDuration);
+    bindPlayback(previewAudio, previewProgress, previewTime, function () { return recordedDuration; });
+  }
+  /* Lecture : le temps affiché ne dépasse jamais la durée connue (les fichiers issus du micro
+     n'ont pas toujours leur durée dans l'en-tête), la fin est détectée même si « ended » ne vient
+     pas, et la barre devient un curseur (toucher ou glisser pour avancer / reculer). */
+  function bindPlayback(audio, bar, timeEl, getDur) {
+    var dur = function () { var d = getDur(); return d > 0 ? d : (isFinite(audio.duration) && audio.duration > 0 ? audio.duration : 0); };
+    var finish = function () {
+      audio.pause();
+      try { audio.currentTime = 0; } catch (e) { /* rien */ }
+      bar.style.width = '0%';
+      timeEl.textContent = fmt(dur());
+    };
+    audio.addEventListener('timeupdate', function () {
+      var d = dur(), t = Math.min(audio.currentTime, d || audio.currentTime);
+      if (d) bar.style.width = Math.min(100, (t / d) * 100) + '%';
+      timeEl.textContent = fmt(t) + (d ? ' / ' + fmt(d) : '');
+      if (d && audio.currentTime >= d - 0.15 && !audio.paused) finish();
     });
-    previewAudio.addEventListener('ended', function () {
-      previewProgress.style.width = '0%';
-      previewTime.textContent = fmt(recordedDuration);
-    });
+    audio.addEventListener('ended', finish);
+    // curseur : toucher ou glisser sur la barre
+    var box = bar.parentElement;
+    box.classList.add('seek');
+    var seekTo = function (clientX) {
+      var d = dur(); if (!d) return;
+      var r = box.getBoundingClientRect(), ratio = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+      try { audio.currentTime = ratio * d; } catch (e) { /* rien */ }
+      bar.style.width = (ratio * 100) + '%';
+      timeEl.textContent = fmt(ratio * d) + ' / ' + fmt(d);
+    };
+    var dragging = false;
+    box.addEventListener('pointerdown', function (e) { dragging = true; box.setPointerCapture(e.pointerId); seekTo(e.clientX); });
+    box.addEventListener('pointermove', function (e) { if (dragging) seekTo(e.clientX); });
+    box.addEventListener('pointerup', function () { dragging = false; });
+    box.addEventListener('pointercancel', function () { dragging = false; });
   }
 
   function stopPreview() {

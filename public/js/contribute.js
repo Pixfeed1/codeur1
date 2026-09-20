@@ -572,7 +572,7 @@
   function itemOf(p) {
     return {
       hasAudio: p.kind === 'voice' || !!p.audio, hasText: p.kind === 'text' && !!(p.text || '').trim(), hasPhoto: !!p.photo,
-      text: p.text, duration: p.duration, photoFull: p.photo ? p.photo.url : null, photoFocus: p.photoFocus, questionPos: p.questionPos, overlayDark: p.overlayDark,
+      text: p.text, duration: p.duration, photoFull: p.photo ? (p.photo.fullUrl || p.photo.url) : null, photoFocus: p.photoFocus, questionPos: p.questionPos, overlayDark: p.overlayDark,
       category: p.cat, free: p.free, question: p.free ? '' : p.q,
     };
   }

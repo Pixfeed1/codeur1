@@ -88,6 +88,7 @@ function projectDetail(p) {
     frame: frame ? { slug: frame.slug, url: `${config.BASE_URL}/f/${frame.slug}`, linkedAt: frame.linked_at } : null,
     used: store.countDone(p.id),
     participationUrl: `${config.BASE_URL}/p/${p.slug}`,
+    organizerUrl: (() => { const t = store.getOrganizerToken(p); return t ? `${config.BASE_URL}/o/${t}` : null; })(),
     previewUrl: `${config.BASE_URL}/apercu/${p.slug}?p=${h.issuePreviewToken(p.id)}`,
     contributions,
     photos,
@@ -502,6 +503,11 @@ const EDITABLE_SETTINGS = {
   contact_email: (v) => String(v || '').trim().slice(0, 120),
   shop_url: (v) => String(v || '').trim().replace(/\/$/, '').slice(0, 200),
 };
+
+// Aperçu des emails automatiques (rendus avec un projet d'exemple, rien n'est envoyé)
+router.get('/emails/preview', async (req, res) => {
+  res.json({ emails: await mailer.previewAll() });
+});
 
 router.get('/settings', (req, res) => {
   const s = store.allSettings();

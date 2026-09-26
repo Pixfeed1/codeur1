@@ -256,6 +256,7 @@
         '<button class="btn inline ghost" id="pdReset">Réinitialiser le reveal</button>' +
       '</div>' +
       '<div class="linkbox"><span>Lien de participation :</span><code>' + esc(p.participationUrl) + '</code><button class="btn inline small ghost" data-copy="' + esc(p.participationUrl) + '">Copier</button></div>' +
+      (p.organizerUrl ? '<div class="linkbox"><span>Lien organisateur (personnel, ne pas diffuser) :</span><code>' + esc(p.organizerUrl) + '</code><button class="btn inline small ghost" data-copy="' + esc(p.organizerUrl) + '">Copier</button><a class="btn inline small ghost" href="' + esc(p.organizerUrl) + '" target="_blank" rel="noopener">Ouvrir</a></div>' : '') +
 
       '<h2>Cadre NFC</h2>' +
       (p.frame
@@ -572,7 +573,28 @@
   });
 
   /* -------------------------------------------------------------- réglages */
+  function loadEmailPreviews() {
+    var box = $('emailPreviews');
+    if (!box) return;
+    api('GET', '/api/admin/emails/preview').then(function (d) {
+      box.innerHTML = d.emails.map(function (m, i) {
+        return '<tr><td>' + esc(m.label) + '</td><td class="small">' + esc(m.subject) + '</td><td><button class="btn inline small ghost" data-mail="' + i + '">Voir</button></td></tr>';
+      }).join('');
+      Array.prototype.forEach.call(box.querySelectorAll('[data-mail]'), function (b) {
+        b.addEventListener('click', function () {
+          var m = d.emails[Number(b.dataset.mail)];
+          var w = window.open('', '_blank');
+          if (!w) return toast('Autorisez les fenêtres pop-up pour voir l’email', true);
+          w.document.open();
+          w.document.write(m.html);
+          w.document.close();
+          w.document.title = m.subject;
+        });
+      });
+    }).catch(fail);
+  }
   function loadSettings() {
+    loadEmailPreviews();
     return Promise.all([api('GET', '/api/admin/settings'), api('GET', '/api/admin/shopify/events')]).then(function (res) {
       var d = res[0];
       Array.prototype.forEach.call(document.querySelectorAll('#settingsForm [data-key]'), function (inp) {

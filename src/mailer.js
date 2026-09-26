@@ -67,7 +67,15 @@ async function deliver({ to, subject, html, text }) {
   return { status: 'sent' };
 }
 
+// Quand un « collecteur » est actif (aperçu depuis l'administration), les
+// messages sont rendus et empilés au lieu d'être envoyés.
+let previewSink = null;
+
 async function send({ projectId, type, to, subject, content }) {
+  if (previewSink) {
+    previewSink.push({ type, to, subject, html: layout(content), text: textVersion(content) });
+    return true;
+  }
   if (!to || !/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(to)) {
     store.logEmail({ projectId, type, to: String(to || ''), subject, status: 'failed', error: 'invalid_recipient' });
     return false;
@@ -224,7 +232,36 @@ function testEmail(to) {
   });
 }
 
+/** Rendu des emails automatiques avec un projet d'exemple, pour l'administration. */
+async function previewAll() {
+  const project = {
+    id: 0, organizer_name: 'Lucie', organizer_email: 'lucie@exemple.fr', recipient_name: 'Mamie Jeanne', capacity: 25,
+  };
+  const token = 'exemple-de-lien-personnel';
+  const labels = {
+    project_access: 'Après la commande : accès au projet',
+    access_link: 'Nouveau lien demandé par l’organisateur',
+    capacity_alert: 'Alerte de capacité : proposer des places supplémentaires',
+    closing_reminder: 'Rappel avant la date de l’événement',
+    sealed: 'Confirmation de scellement',
+    shipped: 'Confirmation d’expédition',
+  };
+  previewSink = [];
+  try {
+    await projectAccess(project, token);
+    await newAccessLink(project, token);
+    await capacityAlert(project, token, { used: 20, extraUrl: `${store.getSetting('shop_url', '') || config.BASE_URL}/`, extraPrice: Number(store.getSetting('extra_seat_price_cents', 200)) });
+    await closingReminder(project, token, Number(store.getSetting('reminder_days_before', 3)));
+    await sealedConfirmation(project, token);
+    await shippedConfirmation(project, token);
+    return previewSink.map((m) => ({ ...m, label: labels[m.type] || m.type }));
+  } finally {
+    previewSink = null;
+  }
+}
+
 module.exports = {
+  previewAll,
   projectAccess,
   newAccessLink,
   capacityAlert,

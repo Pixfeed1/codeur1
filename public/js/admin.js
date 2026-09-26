@@ -573,25 +573,71 @@
   });
 
   /* -------------------------------------------------------------- réglages */
+  function openEmailHtml(m) {
+    var w = window.open('', '_blank');
+    if (!w) return toast('Autorisez les fenêtres pop-up pour voir l’email', true);
+    w.document.open();
+    w.document.write(m.html);
+    w.document.close();
+    w.document.title = m.subject;
+  }
+  var emailTpls = [];
   function loadEmailPreviews() {
     var box = $('emailPreviews');
     if (!box) return;
-    api('GET', '/api/admin/emails/preview').then(function (d) {
-      box.innerHTML = d.emails.map(function (m, i) {
-        return '<tr><td>' + esc(m.label) + '</td><td class="small">' + esc(m.subject) + '</td><td><button class="btn inline small ghost" data-mail="' + i + '">Voir</button></td></tr>';
+    Promise.all([api('GET', '/api/admin/emails'), api('GET', '/api/admin/emails/preview')]).then(function (res) {
+      emailTpls = res[0].emails;
+      var vars = res[0].variables;
+      var previews = res[1].emails;
+      box.innerHTML = emailTpls.map(function (t, i) {
+        var pv = previews[i] || {};
+        return '<tr><td>' + esc(t.label) + (t.custom ? ' <span class="tag done">personnalisé</span>' : '') + '</td><td class="small">' + esc(pv.subject || t.default.subject) + '</td>' +
+          '<td class="nowrap"><button class="btn inline small ghost" data-mail="' + i + '">Voir</button> <button class="btn inline small ghost" data-edit="' + i + '">Modifier</button></td></tr>';
       }).join('');
       Array.prototype.forEach.call(box.querySelectorAll('[data-mail]'), function (b) {
-        b.addEventListener('click', function () {
-          var m = d.emails[Number(b.dataset.mail)];
-          var w = window.open('', '_blank');
-          if (!w) return toast('Autorisez les fenêtres pop-up pour voir l’email', true);
-          w.document.open();
-          w.document.write(m.html);
-          w.document.close();
-          w.document.title = m.subject;
-        });
+        b.addEventListener('click', function () { openEmailHtml(previews[Number(b.dataset.mail)]); });
+      });
+      Array.prototype.forEach.call(box.querySelectorAll('[data-edit]'), function (b) {
+        b.addEventListener('click', function () { openEmailEditor(emailTpls[Number(b.dataset.edit)], vars); });
       });
     }).catch(fail);
+  }
+  function openEmailEditor(t, vars) {
+    var ed = $('emailEditor');
+    var cur = t.custom || t.default;
+    ed.dataset.type = t.type;
+    $('emailEditorTitle').textContent = t.label;
+    $('emTplSubject').value = cur.subject; $('emTplTitle').value = cur.title; $('emTplCta').value = cur.cta;
+    $('emTplIntro').value = cur.intro; $('emTplOutro').value = cur.outro || '';
+    $('emTplVars').innerHTML = 'Variables disponibles : ' + Object.keys(vars).map(function (k) { return '<code>{' + k + '}</code> ' + esc(vars[k]); }).join(' · ');
+    ed.classList.remove('hidden');
+    ed.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  }
+  function emailEditorBody() {
+    return { subject: $('emTplSubject').value, title: $('emTplTitle').value, cta: $('emTplCta').value, intro: $('emTplIntro').value, outro: $('emTplOutro').value };
+  }
+  if ($('emTplSave')) {
+    $('emTplSave').addEventListener('click', function () {
+      api('PUT', '/api/admin/emails/' + $('emailEditor').dataset.type, emailEditorBody()).then(function () { toast('Texte enregistré'); loadEmailPreviews(); }).catch(fail);
+    });
+    $('emTplPreview').addEventListener('click', function () {
+      var type = $('emailEditor').dataset.type;
+      api('PUT', '/api/admin/emails/' + type, emailEditorBody()).then(function () { return api('GET', '/api/admin/emails/preview'); }).then(function (d) {
+        var m = d.emails.filter(function (x) { return x.type === type; })[0];
+        if (m) openEmailHtml(m);
+        loadEmailPreviews();
+      }).catch(fail);
+    });
+    $('emTplReset').addEventListener('click', function () {
+      if (!confirm('Revenir au texte d’origine de cet email ?')) return;
+      var type = $('emailEditor').dataset.type;
+      api('DELETE', '/api/admin/emails/' + type).then(function (d) {
+        toast('Texte d’origine rétabli');
+        var t = d.emails.filter(function (x) { return x.type === type; })[0];
+        return api('GET', '/api/admin/emails').then(function (r) { openEmailEditor(t, r.variables); loadEmailPreviews(); });
+      }).catch(fail);
+    });
+    $('emTplClose').addEventListener('click', function () { $('emailEditor').classList.add('hidden'); });
   }
   function loadSettings() {
     loadEmailPreviews();

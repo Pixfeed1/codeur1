@@ -188,8 +188,25 @@
         <div class="visuals" id="visualsGrid"></div>
 
         <h2>E-mails automatiques</h2>
-        <p class="note">Les six e-mails envoyés à l'organisateur, rendus avec un projet d'exemple. Le nom de marque et l'adresse de la boutique ci-dessus s'y appliquent.</p>
+        <p class="note">Les six e-mails envoyés à l'organisateur. « Voir » ouvre le rendu avec un projet d'exemple, « Modifier » permet de changer les textes. Le lien du bouton n'est pas modifiable.</p>
         <div class="tablewrap"><table><thead><tr><th>Quand</th><th>Objet</th><th></th></tr></thead><tbody id="emailPreviews"></tbody></table></div>
+        <div class="hidden" id="emailEditor">
+          <h3 id="emailEditorTitle"></h3>
+          <div class="form">
+            <label>Objet<input type="text" id="emTplSubject" maxlength="200"></label>
+            <label>Titre<input type="text" id="emTplTitle" maxlength="200"></label>
+            <label>Texte du bouton<input type="text" id="emTplCta" maxlength="200"></label>
+          </div>
+          <label>Texte principal (une ligne vide = nouveau paragraphe, **gras** entre deux étoiles)<textarea id="emTplIntro" class="form" style="width:100%;min-height:140px"></textarea></label>
+          <label>Texte après le bouton (facultatif)<textarea id="emTplOutro" class="form" style="width:100%;min-height:70px"></textarea></label>
+          <p class="note" id="emTplVars"></p>
+          <div class="actions">
+            <button class="btn inline" id="emTplSave">Enregistrer</button>
+            <button class="btn inline ghost" id="emTplPreview">Voir le rendu</button>
+            <button class="btn inline ghost" id="emTplReset">Revenir au texte d'origine</button>
+            <button class="btn inline ghost" id="emTplClose">Fermer</button>
+          </div>
+        </div>
 
         <h2>Configuration serveur</h2>
         <div id="envInfo" class="note"></div>

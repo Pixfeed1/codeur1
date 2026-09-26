@@ -509,6 +509,19 @@ router.get('/emails/preview', async (req, res) => {
   res.json({ emails: await mailer.previewAll() });
 });
 
+// Textes des emails automatiques : modèles par défaut, personnalisations, variables
+router.get('/emails', (req, res) => {
+  res.json({ emails: mailer.listTemplates(), variables: mailer.VARIABLES });
+});
+router.put('/emails/:type', json, (req, res) => {
+  if (!mailer.saveTemplate(req.params.type, req.body || {})) return res.status(404).json({ error: 'unknown_email' });
+  res.json({ emails: mailer.listTemplates() });
+});
+router.delete('/emails/:type', (req, res) => {
+  if (!mailer.saveTemplate(req.params.type, null)) return res.status(404).json({ error: 'unknown_email' });
+  res.json({ emails: mailer.listTemplates() });
+});
+
 router.get('/settings', (req, res) => {
   const s = store.allSettings();
   res.json({

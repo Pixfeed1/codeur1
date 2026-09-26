@@ -16,6 +16,7 @@ const mailer = require('../src/mailer');
 const shopify = require('../src/shopify');
 const jobs = require('../src/jobs');
 const { parseTemplate, sanitizeSvg, renderPreview } = require('../src/templates');
+const compose = require('../src/compose');
 const h = require('./helpers');
 
 const router = express.Router();
@@ -286,8 +287,23 @@ router.get('/projects/:id/preview.svg', (req, res) => {
   );
 });
 
-// Export ZIP : tout le projet (photos originales et carrées, vocaux, textes, composition)
-router.get('/projects/:id/export.zip', (req, res) => {
+// Composition finale pour l'impression (PNG 300 dpi aux dimensions du gabarit)
+router.get('/projects/:id/composition.png', async (req, res) => {
+  const p = projectOr404(req, res);
+  if (!p) return;
+  const t = p.template_id ? store.getTemplate(p.template_id) : null;
+  if (!t) return res.status(404).json({ error: 'no_template' });
+  try {
+    const png = await compose.composePng(compose.composeSvg(p, t, store.listPhotos(p.id)), t);
+    res.type('image/png').set('Cache-Control', 'no-store').send(png);
+  } catch (err) {
+    console.error('composition :', err.message);
+    res.status(500).json({ error: 'compose_failed' });
+  }
+});
+
+// Export ZIP : tout le projet (photos originales et carrées, vocaux, textes, composition finale du cadre)
+router.get('/projects/:id/export.zip', async (req, res) => {
   const p = projectOr404(req, res);
   if (!p) return;
   const safe = (s) => String(s || '').normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-zA-Z0-9_-]+/g, '_').slice(0, 40);
@@ -308,6 +324,7 @@ router.get('/projects/:id/export.zip', (req, res) => {
       scelle_le: p.sealed_at, petit_mot: p.frame_text,
     },
     gabarit: template ? { cle: template.key, nom: template.name, emplacements: template.slot_count, fichier: template.file } : null,
+    cadre: template ? { svg: 'cadre/composition.svg', png: 'cadre/composition.png', format_mm: [template.width_mm, template.height_mm], dpi: compose.PRINT_DPI } : null,
     composition: photos.filter((ph) => ph.slot).sort((a, b) => a.slot - b.slot).map((ph) => ({
       emplacement: ph.slot, photo: `photos/carre/${ph.slot}_${ph.file_square}`, original: `photos/originales/${ph.file_original}`,
       recadrage: ph.crop ? JSON.parse(ph.crop) : null, proche: ph.contributor_name || null, source: ph.source,
@@ -325,6 +342,24 @@ router.get('/projects/:id/export.zip', (req, res) => {
   };
   zip.append(JSON.stringify(manifest, null, 2), { name: 'projet.json' });
   if (template) zip.file(path.join(config.TEMPLATES_DIR, template.file), { name: `gabarit/${template.file}` });
+  if (template) {
+    // Composition finale telle que réalisée sur le site : SVG autonome (photos incorporées) et PNG 300 dpi
+    try {
+      const svg = compose.composeSvg(p, template, photos);
+      zip.append(svg, { name: 'cadre/composition.svg' });
+      zip.append(await compose.composePng(svg, template), { name: 'cadre/composition.png' });
+      zip.append(
+        `Composition finale du cadre « ${p.recipient_name || p.slug} », telle que validée par l'organisateur.\n` +
+        `- composition.png : ${compose.mmToPx(template.width_mm)} x ${compose.mmToPx(template.height_mm)} px, ${compose.PRINT_DPI} dpi, ${template.width_mm} x ${template.height_mm} mm.\n` +
+        `- composition.svg : même rendu en vectoriel, photos incorporées en pleine résolution.\n` +
+        `Les photos séparées et le gabarit vierge sont dans les dossiers photos/ et gabarit/.\n`,
+        { name: 'cadre/LISEZMOI.txt' }
+      );
+    } catch (err) {
+      console.error('composition export :', err.message);
+      zip.append(`La composition n'a pas pu être générée : ${err.message}\n`, { name: 'cadre/ERREUR.txt' });
+    }
+  }
   const texts = memories.filter((m) => m.kind === 'text').map((m) => `${m.contributor_name}\n${m.question_text || 'Mot libre'}\n\n${m.text_body}\n`).join('\n----------------------------------------\n\n');
   if (texts) zip.append(texts, { name: 'messages.txt' });
   for (const ph of photos) {

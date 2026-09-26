@@ -277,7 +277,7 @@
       '<div class="actions"><button class="btn inline" id="pdSave">Enregistrer</button></div>' +
 
       '<h2>Composition' + (tpl ? ' · ' + esc(tpl.name) + ' (' + p.photos.filter(function (x) { return x.slot; }).length + '/' + tpl.slotCount + ')' : '') + '</h2>' +
-      (tpl ? '<div class="preview-box" id="pdPreview"></div>' : '<p class="note">L’organisateur n’a pas encore choisi de gabarit.</p>') +
+      (tpl ? '<div class="preview-box" id="pdPreview"></div><div class="toolbar"><button class="btn inline ghost" id="pdComposition">Télécharger la composition (PNG 300 dpi)</button></div>' : '<p class="note">L’organisateur n’a pas encore choisi de gabarit.</p>') +
 
       '<h2>Photos (' + p.photos.length + ')</h2>' +
       '<div class="toolbar"><input type="file" id="pdPhotoFile" accept="image/*" multiple><button class="btn inline ghost" id="pdPhotoAdd">Ajouter</button><input type="file" id="pdReplaceFile" accept="image/*" class="hidden"></div>' +
@@ -343,6 +343,10 @@
     });
 
     if (tpl) authSvg($('pdPreview'), '/api/admin/projects/' + p.id + '/preview.svg');
+    if (tpl) $('pdComposition').addEventListener('click', function () {
+      toast('Génération de la composition…');
+      download('/api/admin/projects/' + p.id + '/composition.png', 'ravive_' + p.slug + '_cadre.png').catch(fail);
+    });
 
     // Cadres disponibles
     var sel = $('pdFrameSelect');

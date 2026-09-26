@@ -1,7 +1,7 @@
 # ravive - Guide d'utilisation
 
-Application : https://ravive-moi.fr
-Administration : https://ravive-moi.fr/admin
+Application : https://app.ravive-moi.fr
+Administration : https://app.ravive-moi.fr/admin
 
 ---
 
@@ -23,7 +23,7 @@ Aucune application à installer : tout se passe dans le navigateur du téléphon
 
 ## 2. Se connecter à l'administration
 
-Rendez-vous sur https://ravive-moi.fr/admin et saisissez votre identifiant et
+Rendez-vous sur https://app.ravive-moi.fr/admin et saisissez votre identifiant et
 votre mot de passe.
 
 Vous y trouverez trois choses : le nombre de cartes créées, en attente et déjà
@@ -165,7 +165,7 @@ nouveau lot : les cartes précédentes resteront simplement inutilisées.
 | Quoi | Où |
 |---|---|
 | Hébergement et nom de domaine | Votre compte EX2 (ex2.com), à votre nom |
-| Administration des cartes | https://ravive-moi.fr/admin |
+| Administration des cartes | https://app.ravive-moi.fr/admin |
 | Adresse de contact du service | ravive.support@gmail.com |
 
 L'hébergement et le domaine vous appartiennent : vous en êtes le titulaire et

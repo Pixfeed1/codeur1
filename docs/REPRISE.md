@@ -1,17 +1,19 @@
 # Ravive V1 cadres — note de reprise
 
-Point de situation au 14 septembre 2026, pour reprendre le travail dans une nouvelle session.
+Point de situation au 26 septembre 2026, pour reprendre le travail dans une nouvelle session.
 
 ## Contexte
 - Client : Ravive (Emilien / Clara Grange), via Codeur. Devis 3 900 € HT en 3 lots, tous réglés (lot 3 viré le 14 septembre, mise en production datée du 14 septembre). Support gratuit (bugs, corrections sur l'existant) jusqu'au 25 octobre 2026.
-- V1.1 proposée au client le 13 septembre (1 400 € HT, devis à envoyer, 50 % à la commande) : voir `docs/V1.1.md`. Code terminé et poussé le 14 septembre (branche à jour) ; à déployer chez le client (`git pull` + restart, migration automatique) une fois l'acompte reçu, puis `seed-demo.js --reset` pour que la démo montre des souvenirs avec photo.
+- V1.1 (1 400 € HT) : livrée et en ligne chez le client depuis le 14 septembre, facturée (F-2026-0179), réglée le 25 septembre. Voir `docs/V1.1.md`.
+- Bascule de domaine (24-25 septembre, 80 € HT à facturer à part) : `ravive-moi.fr` et `www` pointent sur Shopify (A 23.227.38.65, CNAME shops.myshopify.com), l'appli est sur **https://app.ravive-moi.fr** (bloc nginx `ravive-app`, certificat Let's Encrypt propre, `BASE_URL` du `.env` mis à jour, webhook Shopify repointé). Reste côté Shopify : définir ravive-moi.fr comme domaine principal, puis commande test Bogus. Reste côté serveur, une fois la boutique visible sur ravive-moi.fr : `rm /etc/nginx/sites-enabled/ravive`, `nginx -t && systemctl reload nginx`, `certbot delete --cert-name ravive-moi.fr` (l'ancien certificat ne pourra plus se renouveler).
+- Export ZIP d'un projet (26 septembre, demande client, inclus sans frais) : dossier `cadre/` avec la composition finale, `composition.svg` (photos incorporées) et `composition.png` (300 dpi, 2126 x 2835 px pour 18 x 24 cm), généré par `src/compose.js` (sharp + librsvg). Bouton « Télécharger la composition » dans la fiche projet de l'admin. Le rendu du petit mot dépend d'une police système : vérifier `fc-list` sur le serveur, sinon `apt install -y fonts-dejavu-core`.
 - Branche de travail : `claude/ravive-project-quote-5cmhkv` (ne pas pousser ailleurs sans accord). Tout est commité et poussé.
-- Serveur du client : `ssh root@ravive-moi.fr`, appli dans `/home/ravive/ravive-app`, service systemd `ravive`, logs dans `app.log` (pas journalctl).
+- Serveur du client : `ssh root@app.ravive-moi.fr` (l'ancien nom mène désormais à Shopify), appli dans `/home/ravive/ravive-app`, service systemd `ravive`, logs dans `app.log` (pas journalctl).
   Mise à jour : `cd /home/ravive/ravive-app && sudo -u ravive git pull -q && systemctl restart ravive`
   Données de démo : `sudo -u ravive node scripts/seed-demo.js --reset`
 - Serveur PixFeed (démo, cPanel/Apache) : ravive.pixfeed.net, `/home/jurojinn/ravive-app`, port 4010, `journalctl -u ravive -f`. Héberge encore les cartes postales de démo (puces NFC du client écrites avec ces liens). À éteindre le vendredi 18 septembre, accord du client reçu ; les cartes se créent désormais sur ravive-moi.fr.
 - Shopify branché (webhook, 5 produits avec SKU RAVIVE-10/25/50/100/EXTRA), Brevo branché, ffmpeg installé chez le client.
-- Admin : https://ravive-moi.fr/admin (identifiants dans le `.env` du serveur).
+- Admin : https://app.ravive-moi.fr/admin (identifiants dans le `.env` du serveur).
 
 ## Fait pendant la recette (8 septembre)
 - Recette automatisée Playwright (scratchpad, 104 captures iPhone 13 / SE) : corrections de reprise après rechargement, petits écrans, textes longs.

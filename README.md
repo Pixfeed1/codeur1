@@ -86,6 +86,8 @@ copie + propagation DNS.
 | `BASE_URL` | `http://localhost:3000` | Domaine public, utilisé pour les URL du CSV |
 | `SECRET` | auto-généré dans `data/.secret` | Signe les jetons et sale les codes. **Ne pas le changer après la mise en prod** (les codes déjà imprimés deviendraient invalides) |
 | `ADMIN_USER` / `ADMIN_TOKEN` | désactivé | Identifiant + mot de passe de la page d'administration `/admin` (les deux requis) |
+| `MAIL_FROM_EMAIL` / `MAIL_FROM_NAME` | `bonjour@ravive.fr` / `Ravive` | Expéditeur des emails (à mettre sur un domaine authentifié dans Brevo pour éviter les spams) |
+| `MAIL_REPLY_TO` | vide | Adresse de réponse, ex. la boîte Gmail du client, quand l'expéditeur est une adresse du domaine sans boîte mail |
 | `MAX_DURATION_S` | `180` | Durée max d'un vocal (secondes) |
 | `MAX_UPLOAD_BYTES` | `26214400` | Taille max d'upload (25 Mo) |
 

@@ -54,6 +54,7 @@ async function deliver({ to, subject, html, text }) {
     headers: { 'api-key': config.BREVO_API_KEY, 'Content-Type': 'application/json', Accept: 'application/json' },
     body: JSON.stringify({
       sender: { email: config.MAIL_FROM_EMAIL, name: config.MAIL_FROM_NAME },
+      ...(config.MAIL_REPLY_TO ? { replyTo: { email: config.MAIL_REPLY_TO, name: config.MAIL_FROM_NAME } } : {}),
       to: [{ email: to }],
       subject,
       htmlContent: html,

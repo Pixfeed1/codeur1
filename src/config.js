@@ -73,6 +73,7 @@ module.exports = {
   BREVO_API_KEY: process.env.BREVO_API_KEY || '',
   MAIL_FROM_EMAIL: process.env.MAIL_FROM_EMAIL || 'bonjour@ravive.fr',
   MAIL_FROM_NAME: process.env.MAIL_FROM_NAME || 'Ravive',
+  MAIL_REPLY_TO: process.env.MAIL_REPLY_TO || '', // adresse de réponse (ex. boîte Gmail) quand l'expéditeur est sur le domaine
   // Shopify : secret de signature des webhooks (Paramètres > Notifications > Webhooks)
   SHOPIFY_WEBHOOK_SECRET: process.env.SHOPIFY_WEBHOOK_SECRET || '',
   SHOPIFY_SHOP_DOMAIN: process.env.SHOPIFY_SHOP_DOMAIN || '', // ex. b1yfej-pc.myshopify.com

@@ -184,7 +184,7 @@
           '<td>' + p.photos_count + '</td>' +
           '<td class="small">' + (p.template_name ? esc(p.template_name) : '—') + '</td>' +
           '<td class="mono">' + (p.frame_slug ? esc(p.frame_slug) : '<span class="muted">—</span>') + '</td>' +
-          '<td class="small">' + esc(p.shopify_order_number || '—') + '</td>' +
+          '<td class="small">' + esc(p.shopify_order_number || '—') + (p.shopify_variant_title ? '<br><span class="muted">' + esc(p.shopify_variant_title) + '</span>' : '') + '</td>' +
           '<td class="small nowrap">' + fmtDate(p.created_at) + '</td>';
         tr.addEventListener('click', function () { location.hash = 'projects/' + p.id; });
         body.appendChild(tr);
@@ -241,7 +241,7 @@
         '<div class="meta">' +
           'Code <b class="mono">' + esc(p.slug) + '</b> · ' + tag(p.status) + ' · <b>' + p.used + '</b> / ' + p.capacity + ' proches · ' + p.photos.filter(function (x) { return !x.deletedAt; }).length + ' photos<br>' +
           'Organisateur : <b>' + esc(p.organizer_name || '') + '</b> ' + esc(p.organizer_email) + (p.event_date ? ' · Événement le <b>' + esc(p.event_date) + '</b>' : '') + '<br>' +
-          'Commande ' + esc(p.shopify_order_number || '—') + ' · Formule ' + esc(p.formula ? p.formula.name : '—') + ' · Créé le ' + fmtDate(p.created_at) +
+          'Commande ' + esc(p.shopify_order_number || '—') + (p.shopify_variant_title ? ' (' + esc(p.shopify_variant_title) + ')' : '') + ' · Formule ' + esc(p.formula ? p.formula.name : '—') + ' · Créé le ' + fmtDate(p.created_at) +
           (p.sealed_at ? ' · Scellé le ' + fmtDate(p.sealed_at) : '') + (p.shipped_at ? ' · Expédié le ' + fmtDate(p.shipped_at) : '') +
           (p.reveal_seen_at ? ' · Reveal vu le ' + fmtDate(p.reveal_seen_at) : ' · Reveal pas encore vu') +
         '</div></div>' +

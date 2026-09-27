@@ -195,6 +195,7 @@ function migrate(db) {
     ['photos', "role TEXT NOT NULL DEFAULT 'main'"], // main (cadre) | selfie | memory
     ['questions', 'category TEXT'],
     // V1.1 : photo facultative liée au souvenir (photo_id existait déjà)
+    ['projects', 'shopify_variant_title TEXT'],                  // variante commandée (ex. « Blanc ivoire / 10 »)
     ['memories', 'photo_focus INTEGER NOT NULL DEFAULT 50'],   // position verticale du cadrage (0-100)
     ['memories', "question_pos TEXT NOT NULL DEFAULT 'top'"],  // question en haut ou en bas de la photo
     ['memories', 'overlay_dark INTEGER NOT NULL DEFAULT 0'],   // 1 = texte foncé sur la photo (voile clair)

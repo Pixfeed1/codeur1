@@ -38,6 +38,14 @@ function attr(list, key) {
   return hit ? String(hit.value || '') : null;
 }
 
+// Prénom du destinataire saisi sur la fiche produit (propriété d'article dont le
+// nom contient « prénom » ou « pour qui »), si la boutique propose ce champ.
+function recipientFromItem(item) {
+  if (!Array.isArray(item.properties)) return null;
+  const hit = item.properties.find((a) => a && /pr[ée]nom|pour qui|destinataire/i.test(String(a.name || a.key || '')) && String(a.value || '').trim());
+  return hit ? String(hit.value).trim().slice(0, 60) : null;
+}
+
 function isExtraSeatItem(item) {
   const variant = store.getSetting('extra_seat_shopify_variant_id', '');
   const sku = store.getSetting('extra_seat_shopify_sku', '');
@@ -96,7 +104,8 @@ async function handlePaidOrder(order) {
         organizerName: customerName,
         formulaId: formula.id,
         capacity: formula.max_contributors,
-        shopify: { orderId, orderNumber, customerEmail: email },
+        recipientName: recipientFromItem(item),
+        shopify: { orderId, orderNumber, customerEmail: email, variantTitle: item.variant_title || null },
       });
       await mailer.projectAccess(project, token);
       summary.created.push({ project: project.slug, formula: formula.name });

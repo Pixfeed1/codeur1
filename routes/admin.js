@@ -321,7 +321,7 @@ router.get('/projects/:id/export.zip', async (req, res) => {
   const manifest = {
     projet: {
       code: p.slug, destinataire: p.recipient_name, nom: p.project_name, occasion: p.occasion, date: p.event_date,
-      organisateur: p.organizer_name, email: p.organizer_email, commande: p.shopify_order_number, statut: p.status,
+      organisateur: p.organizer_name, email: p.organizer_email, commande: p.shopify_order_number, variante: p.shopify_variant_title, statut: p.status,
       scelle_le: p.sealed_at, petit_mot: p.frame_text,
     },
     gabarit: template ? { cle: template.key, nom: template.name, emplacements: template.slot_count, fichier: template.file } : null,

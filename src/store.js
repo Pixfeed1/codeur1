@@ -384,8 +384,8 @@ function createProject({ organizerEmail, organizerName, formulaId, capacity, sho
         const r = db
           .prepare(
             `INSERT INTO projects (slug, organizer_token_hash, organizer_token_enc, organizer_email, organizer_name, formula_id, capacity,
-             recipient_name, occasion, event_date, project_name, shopify_order_id, shopify_order_number, shopify_customer_email)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
+             recipient_name, occasion, event_date, project_name, shopify_order_id, shopify_order_number, shopify_customer_email, shopify_variant_title)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`
           )
           .run(
             slug,
@@ -401,7 +401,8 @@ function createProject({ organizerEmail, organizerName, formulaId, capacity, sho
             projectName || null,
             shopify.orderId ? String(shopify.orderId) : null,
             shopify.orderNumber ? String(shopify.orderNumber) : null,
-            shopify.customerEmail || null
+            shopify.customerEmail || null,
+            shopify.variantTitle || null
           );
         return r.lastInsertRowid;
       } catch (err) {

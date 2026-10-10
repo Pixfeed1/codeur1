@@ -310,8 +310,11 @@ function renderPreview(svg, parsed, fills, opts = {}) {
     const tz = parsed.textZone;
     const x = (tz.x + tz.w / 2) * scaleX + parsed.viewBox[0];
     const y = (tz.y + tz.h / 2) * scaleY + parsed.viewBox[1];
-    extra = `<rect x="${tz.x * scaleX}" y="${tz.y * scaleY}" width="${tz.w * scaleX}" height="${tz.h * scaleY}" fill="#f7f1e8"/>` +
-      `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-size="${Math.min(7, tz.h / 3)}" fill="#6b5140">${escapeText(opts.text)}</text>`;
+    // Le petit mot se pose directement sur le gabarit (son fond, blanc ou autre,
+    // reste celui dessiné dans le SVG) ; seul le texte d'exemple du gabarit
+    // (« Votre petit mot ici ») est masqué.
+    extra = `<style>text.text-label, text.note, text#text_zone, text#text-zone { display: none; }</style>` +
+      `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-size="${Math.min(7, tz.h / 3)}" fill="${escapeAttr(opts.textColor || '#6b5140')}">${escapeText(opts.text)}</text>`;
   }
   const payload = `<defs>${defs.join('')}</defs>${inserts.join('')}${extra}`;
   const close = out.lastIndexOf('</svg>');

@@ -23,6 +23,7 @@ const media = require('../src/media');
 const mailer = require('../src/mailer');
 const shopify = require('../src/shopify');
 const h = require('./helpers');
+const config = require('../src/config');
 
 const router = express.Router();
 const limitCreate = h.rateLimiter({ max: 30, windowMs: 15 * 60 * 1000 });
@@ -92,8 +93,18 @@ function memoryView(m, slug, id, token) {
 // Pages
 router.get('/p/:slug', (req, res) => {
   const project = store.getProjectBySlug(String(req.params.slug || '').toLowerCase());
-  if (!project) return h.renderView(res, 'contribute.html', { notFound: true }, 404);
-  h.renderView(res, 'contribute.html', publicState(project));
+  if (!project) return h.renderView(res, 'contribute.html', { notFound: true, __meta: { title: 'Ravive' } }, 404);
+  const name = (project.recipient_name || '').trim();
+  const state = publicState(project);
+  // Titre de la page = aperçu du lien quand l'organisateur le partage (Messages, WhatsApp…)
+  state.__meta = {
+    title: name ? `Surprise pour ${name}` : 'Une surprise à préparer ensemble',
+    description: name
+      ? `Dépose une photo, un vocal ou un petit mot pour ${name}. Ça prend deux minutes.`
+      : 'Dépose une photo, un vocal ou un petit mot. Ça prend deux minutes.',
+    image: `${config.BASE_URL}${(state.visuals && state.visuals.contributor_hero) || '/img/contributor-hero.jpg'}`,
+  };
+  h.renderView(res, 'contribute.html', state);
 });
 
 router.get('/api/p/:slug', loadProject, (req, res) => res.json(publicState(req.project)));

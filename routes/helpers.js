@@ -17,7 +17,12 @@ function renderView(res, name, state = {}, status = 200) {
     viewCache.set(name, tpl);
   }
   const json = JSON.stringify(state).replace(/</g, '\\u003c');
-  res.status(status).type('html').send(tpl.replace('__STATE__', json));
+  // Titre et description de la page (aperçu du lien dans Messages, WhatsApp…)
+  const esc = (v) => String(v == null ? '' : v).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const meta = state && state.__meta ? state.__meta : {};
+  res.status(status).type('html').send(
+    tpl.replace('__STATE__', json).replace(/__TITLE__/g, esc(meta.title || 'Ravive')).replace(/__DESC__/g, esc(meta.description || 'Des souvenirs qui restent.')).replace(/__IMAGE__/g, esc(meta.image || ''))
+  );
 }
 
 function sendView(res, name, status = 200) {

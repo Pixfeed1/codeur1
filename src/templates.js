@@ -341,7 +341,9 @@ function renderPreview(svg, parsed, fills, opts = {}) {
     // reste celui dessiné dans le SVG) ; seul le texte d'exemple du gabarit
     // (« Votre petit mot ici ») est masqué.
     const st = textStyle(svg, els);
-    const size = st.size || Math.min(7, tz.h / 3);
+    // Taille du gabarit, réduite si le texte déborderait de la zone (≈ 0,55 em par caractère)
+    const fit = (tz.w * scaleX * 0.95) / (0.55 * Math.max(1, String(opts.text).length));
+    const size = Math.min(st.size || Math.min(7, tz.h / 3), fit);
     extra = `<style>text.text-label, text.note, text#text_zone, text#text-zone { display: none; }</style>` +
       `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="${escapeAttr(st.family || 'Georgia,serif')}" font-size="${size}" fill="${escapeAttr(opts.textColor || st.fill || '#6b5140')}">${escapeText(opts.text)}</text>`;
   }

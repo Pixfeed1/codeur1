@@ -283,6 +283,33 @@ function sanitizeSvg(svg) {
  * emplacements (clip sur la forme d'origine). `fills` = { slotIndex: url }.
  * Le numéro d'emplacement est masqué quand une photo l'occupe.
  */
+// Style du petit mot : repris du texte d'exemple du gabarit (<text class="text-label">
+// ou class="note" ou id="text_zone"), attributs inline, style="" ou règle CSS du
+// <style> du SVG. Ainsi la taille, la police et la couleur se règlent dans le gabarit.
+function textStyle(svg, els) {
+  const note = els.find((el) => el.name === 'text' && (/^(text[_-]zone)$/i.test(el.attrs.id || '') || /\b(note|text-label)\b/.test(el.attrs.class || '')));
+  const out = {};
+  if (!note) return out;
+  const pick = (css) => {
+    const m = (k) => { const r = new RegExp(`(?:^|[;\\s])${k}\\s*:\\s*([^;}]+)`, 'i').exec(css || ''); return r ? r[1].trim() : null; };
+    return { size: m('font-size'), family: m('font-family'), fill: m('fill') };
+  };
+  // 1. règles CSS des <style> du gabarit, par classe ou par id (la dernière l'emporte)
+  const classes = (note.attrs.class || '').split(/\s+/).filter(Boolean);
+  const styleBlocks = [...svg.matchAll(/<style[^>]*>([\s\S]*?)<\/style>/gi)].map((m) => m[1]).join('\n');
+  for (const sel of [...classes.map((c) => `.${c}`), note.attrs.id ? `#${note.attrs.id}` : null].filter(Boolean)) {
+    const re = new RegExp(sel.replace(/[.#]/g, '\\$&') + '\\s*\\{([^}]*)\\}', 'g');
+    for (const m of styleBlocks.matchAll(re)) Object.assign(out, Object.fromEntries(Object.entries(pick(m[1])).filter(([, v]) => v)));
+  }
+  // 2. style inline puis attributs directs
+  Object.assign(out, Object.fromEntries(Object.entries(pick(note.attrs.style)).filter(([, v]) => v)));
+  if (note.attrs['font-size']) out.size = note.attrs['font-size'];
+  if (note.attrs['font-family']) out.family = note.attrs['font-family'];
+  if (note.attrs.fill) out.fill = note.attrs.fill;
+  if (out.size) { const n = parseFloat(out.size); out.size = Number.isFinite(n) && n > 0 ? n : null; }
+  return out;
+}
+
 function renderPreview(svg, parsed, fills, opts = {}) {
   const els = listElements(svg);
   let out = svg;
@@ -313,8 +340,10 @@ function renderPreview(svg, parsed, fills, opts = {}) {
     // Le petit mot se pose directement sur le gabarit (son fond, blanc ou autre,
     // reste celui dessiné dans le SVG) ; seul le texte d'exemple du gabarit
     // (« Votre petit mot ici ») est masqué.
+    const st = textStyle(svg, els);
+    const size = st.size || Math.min(7, tz.h / 3);
     extra = `<style>text.text-label, text.note, text#text_zone, text#text-zone { display: none; }</style>` +
-      `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="Georgia,serif" font-size="${Math.min(7, tz.h / 3)}" fill="${escapeAttr(opts.textColor || '#6b5140')}">${escapeText(opts.text)}</text>`;
+      `<text x="${x}" y="${y}" text-anchor="middle" dominant-baseline="middle" font-family="${escapeAttr(st.family || 'Georgia,serif')}" font-size="${size}" fill="${escapeAttr(opts.textColor || st.fill || '#6b5140')}">${escapeText(opts.text)}</text>`;
   }
   const payload = `<defs>${defs.join('')}</defs>${inserts.join('')}${extra}`;
   const close = out.lastIndexOf('</svg>');

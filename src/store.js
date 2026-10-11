@@ -773,7 +773,8 @@ function restoreContribution(id, projectId) {
   db.prepare('UPDATE photos SET deleted_at = NULL WHERE contribution_id = ? AND project_id = ?').run(id, projectId);
 }
 
-// Brouillons abandonnés (contributeur parti en cours de route) : retourne les
+// Brouillons abandonnés (contributeur parti en cours de route, sans revenir dans
+// le délai donné) : retourne les
 // lignes à purger (fichiers inclus) puis les supprime.
 function purgeDrafts(hours = 24) {
   const drafts = db

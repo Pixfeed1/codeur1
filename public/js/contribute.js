@@ -43,7 +43,7 @@
     return R.api(method, apiBase + path, opts);
   }
   function save() {
-    try { sessionStorage.setItem(storeKey, JSON.stringify({ id: S.id, token: S.token, name: S.name })); } catch (e) { /* rien */ }
+    try { localStorage.setItem(storeKey, JSON.stringify({ id: S.id, token: S.token, name: S.name })); } catch (e) { /* rien */ }
   }
   function render(keep) { var y = window.scrollY; try { SC[S.sc](); } catch (e) { console.error(e); } window.scrollTo(0, keep ? y : 0); }
   function go(x) { if (S.timer) { clearTimeout(S.timer); S.timer = null; } S.sc = x; render(); }
@@ -672,7 +672,7 @@
   function sendAll() {
     busy(true, 'Envoi…');
     api('POST', '/contributions/' + S.id + '/complete', { body: { star: S.starId || null } }).then(function () {
-      try { sessionStorage.removeItem(storeKey); } catch (e) { /* rien */ }
+      try { localStorage.removeItem(storeKey); } catch (e) { /* rien */ }
       busy(false); go('merci');
     }).catch(fail);
   }
@@ -687,7 +687,7 @@
   /* ------------------------------------------------------ reprise */
   (function resume() {
     var saved = null;
-    try { saved = JSON.parse(sessionStorage.getItem(storeKey) || 'null'); } catch (e) { /* rien */ }
+    try { saved = JSON.parse(localStorage.getItem(storeKey) || 'null'); } catch (e) { /* rien */ }
     if (!saved || !saved.token || !ST.open) { render(); return; }
     S.id = saved.id; S.token = saved.token; S.name = saved.name || '';
     api('GET', '/contributions/' + S.id + '/memories').then(function (r) {
@@ -702,6 +702,6 @@
       if (r.selfie) S.selfie = { url: r.selfie, sent: true };
       S.sc = r.memories.length ? 'review' : 'photo';
       render();
-    }).catch(function () { try { sessionStorage.removeItem(storeKey); } catch (e) { /* rien */ } reset(); render(); });
+    }).catch(function () { try { localStorage.removeItem(storeKey); } catch (e) { /* rien */ } reset(); render(); });
   })();
 })();

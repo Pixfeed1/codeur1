@@ -22,7 +22,7 @@ async function sendReminders() {
 }
 
 function purgeDrafts() {
-  const rows = store.purgeDrafts(24);
+  const rows = store.purgeDrafts(24 * 7); // un contributeur peut reprendre son souvenir pendant 7 jours
   for (const r of rows) {
     if (r.audio_file) media.deleteAudioFile(r.audio_file);
     if (r.file_original) media.deletePhotoFiles(r);

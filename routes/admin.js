@@ -17,6 +17,7 @@ const shopify = require('../src/shopify');
 const jobs = require('../src/jobs');
 const { parseTemplate, sanitizeSvg, renderPreview } = require('../src/templates');
 const compose = require('../src/compose');
+const sharemsg = require('../src/sharemsg');
 const h = require('./helpers');
 
 const router = express.Router();
@@ -507,6 +508,17 @@ const EDITABLE_SETTINGS = {
 // Aperçu des emails automatiques (rendus avec un projet d'exemple, rien n'est envoyé)
 router.get('/emails/preview', async (req, res) => {
   res.json({ emails: await mailer.previewAll() });
+});
+
+// Message de partage proposé à l'organisateur (texte, variables, exemple rendu)
+router.get('/share-message', (req, res) => res.json(sharemsg.state()));
+router.put('/share-message', json, (req, res) => {
+  sharemsg.save((req.body || {}).text);
+  res.json(sharemsg.state());
+});
+router.delete('/share-message', (req, res) => {
+  sharemsg.save(null);
+  res.json(sharemsg.state());
 });
 
 // Textes des emails automatiques : modèles par défaut, personnalisations, variables

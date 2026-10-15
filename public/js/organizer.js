@@ -137,6 +137,7 @@
   /* -------------------------------------------------------- tableau de bord */
   var STATUS = { preparing: 'En préparation', collecting: 'Collecte en cours', sealed: 'Scellé · en préparation', production: 'En fabrication', shipped: 'Expédié', done: 'Livré' };
   function shareMsg() {
+    if (D.shareMessage) return D.shareMessage;
     var p = pr();
     return 'Coucou ! On prépare une surprise pour ' + P() + ' ❤️\n\nÇa prend juste quelques minutes : ajoute un souvenir avec ' + p.lui + ' et laisse-' + p.lui + ' un petit mot, drôle, touchant, ou juste comme tu le sens.\n\nTu peux participer ici : ' + D.participationUrl;
   }

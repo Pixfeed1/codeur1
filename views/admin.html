@@ -208,6 +208,17 @@
           </div>
         </div>
 
+        <h2>Message de partage</h2>
+        <p class="note">Le petit mot tout prêt que l'organisateur copie ou envoie sur WhatsApp pour inviter les proches. Une ligne vide = nouveau paragraphe.</p>
+        <label>Texte<textarea id="shareText" class="form" style="width:100%;min-height:140px" maxlength="2000"></textarea></label>
+        <p class="note" id="shareVars"></p>
+        <p class="note">Exemple pour un projet « Camille » :</p>
+        <pre class="small" id="shareExample" style="white-space:pre-wrap;background:#faf7f2;border:1px solid #e8e0d4;border-radius:8px;padding:12px"></pre>
+        <div class="actions">
+          <button class="btn inline" id="shareSave">Enregistrer</button>
+          <button class="btn inline ghost" id="shareReset">Revenir au texte d'origine</button>
+        </div>
+
         <h2>Configuration serveur</h2>
         <div id="envInfo" class="note"></div>
 

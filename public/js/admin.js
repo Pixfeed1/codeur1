@@ -639,8 +639,29 @@
     });
     $('emTplClose').addEventListener('click', function () { $('emailEditor').classList.add('hidden'); });
   }
+  function showShareMessage(d) {
+    if (!$('shareText')) return;
+    $('shareText').value = d.text;
+    $('shareExample').textContent = d.example;
+    $('shareVars').innerHTML = (d.custom ? '<span class="tag done">personnalisé</span> ' : '') + 'Variables disponibles : ' +
+      Object.keys(d.variables).map(function (k) { return '<code>{' + k + '}</code> ' + esc(d.variables[k]); }).join(' · ');
+  }
+  function loadShareMessage() {
+    if (!$('shareText')) return;
+    api('GET', '/api/admin/share-message').then(showShareMessage).catch(fail);
+  }
+  if ($('shareSave')) {
+    $('shareSave').addEventListener('click', function () {
+      api('PUT', '/api/admin/share-message', { text: $('shareText').value }).then(function (d) { toast('Message enregistré'); showShareMessage(d); }).catch(fail);
+    });
+    $('shareReset').addEventListener('click', function () {
+      if (!confirm('Revenir au message d’origine ?')) return;
+      api('DELETE', '/api/admin/share-message').then(function (d) { toast('Message d’origine rétabli'); showShareMessage(d); }).catch(fail);
+    });
+  }
   function loadSettings() {
     loadEmailPreviews();
+    loadShareMessage();
     return Promise.all([api('GET', '/api/admin/settings'), api('GET', '/api/admin/shopify/events')]).then(function (res) {
       var d = res[0];
       Array.prototype.forEach.call(document.querySelectorAll('#settingsForm [data-key]'), function (inp) {

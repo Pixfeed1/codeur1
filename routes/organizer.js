@@ -18,6 +18,7 @@ const { renderPreview } = require('../src/templates');
 const fs = require('fs');
 const path = require('path');
 const h = require('./helpers');
+const sharemsg = require('../src/sharemsg');
 
 const router = express.Router();
 const limitAccess = h.rateLimiter({ max: 5, windowMs: 15 * 60 * 1000 });
@@ -108,6 +109,7 @@ function dashboardState(project, token) {
       setupDone: !!project.setup_at && !!project.recipient_name,
     },
     participationUrl: `${config.BASE_URL}/p/${project.slug}`,
+    shareMessage: sharemsg.render(project, `${config.BASE_URL}/p/${project.slug}`),
     frameUrl: frame ? `${config.BASE_URL}/f/${frame.slug}` : null,
     previewUrl: `${config.BASE_URL}/apercu/${project.slug}?p=${h.issuePreviewToken(project.id)}`,
     extraSeatsUrl: shopify.extraSeatsUrl(project),
